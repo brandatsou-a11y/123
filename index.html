@@ -768,7 +768,9 @@ async function finishRec() {
     const data = await postJSON({
       action: "record", topic: TOPIC, name: S.name,
       word: wd.w, cn: wd.cn, ex: wd.ex,
-      seconds: dur, mime: mrBlob.type, folderId: DRIVE_FOLDER, audio: audio
+      seconds: dur, mime: mrBlob.type, folderId: DRIVE_FOLDER,
+      audio: audio,
+      audioForm: b64ToForm(audio)      // ★ 給表單重試路徑用的（URL 長度限制較鬆）
     });
     S.recOK.add(S.ri);
     S.recList.push({ w: wd.w, cn: wd.cn, sec: dur, url: data.fileUrl, preview: data.previewUrl, file: data.fileName });
@@ -812,16 +814,87 @@ function renderRecList() {
 }
 
 /* =====================================================================
-   上傳（★ 不要用 application/json，會觸發 CORS preflight 失敗）
+   上傳
+   ---------------------------------------------------------------------
+   ★ 兩顆地雷，都跟 Apps Script 的 302 轉址有關：
+
+   1. 不要用 Content-Type: application/json
+      → 會觸發 CORS preflight，而 Apps Script 不會回應 preflight，請求直接失敗。
+
+   2. Apps Script 收到 POST 會 302 轉址到 script.googleusercontent.com/macros/echo
+      → Chrome 桌面版會自動用 POST 跟過去，正常。
+      → 但「Android Chrome 某些版本」會在轉址時把 method 改成 GET，body 就掉了，
+        結果 doGet 被執行，回傳說明頁（純文字），前端就會看到「後端回應不是 JSON」。
+
+   解法：偵測到回應不是 JSON 時，改用 no-cors + 表單編碼重試一次。
+   這樣連 preflight 都不會有，body 用 query string 帶過去，轉址時也不會掉。
    ===================================================================== */
+function b64ToForm(b64) { return btoa(unescape(encodeURIComponent(b64))); }
+
+async function postForm(payload) {
+  const p = {};
+  Object.keys(payload).forEach(k => {
+    if (payload[k] === undefined || payload[k] === null) return;
+    if (k === "audio") return;                       // 改用 audioForm
+    p[k] = String(payload[k]);
+  });
+  if (payload.audioForm) p.audio = payload.audioForm;  // ★ 表單編碼要純 base64（不能有 data: 前綴）
+  else if (payload.audio) p.audio = String(payload.audio);
+
+  await fetch(scriptURL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
+    body: new URLSearchParams(p).toString()
+  });
+  // no-cors 讀不到回應，所以回頭確認後端確實有收到
+  await new Promise(r => setTimeout(r, 1000));
+  const chk = await fetch(scriptURL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "ping", since: payload.audioForm ? Date.now() - 60000 : 0 })
+  });
+  const ctxt = await chk.text();
+  let cdata = null;
+  try { cdata = JSON.parse(ctxt); } catch (e) {}
+  if (cdata && cdata.ping === true) {
+    return { ok: true, fileUrl: cdata.fileUrl, previewUrl: cdata.previewUrl, fileName: cdata.fileName };
+  }
+  throw new Error("表單重試無法確認結果");
+}
+
 async function postJSON(payload) {
   if (!scriptURL) throw new Error("尚未設定 scriptURL");
-  const res = await fetch(scriptURL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
-  const txt = await res.text();
-  let data;
-  try { data = JSON.parse(txt); } catch (e) { throw new Error("後端回應不是 JSON（" + res.status + "）：" + txt.slice(0, 120)); }
-  if (!data || data.ok !== true) throw new Error((data && data.error) || "上傳失敗（HTTP " + res.status + "）");
-  return data;
+
+  let txt, status;
+  try {
+    const res = await fetch(scriptURL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+    status = res.status; txt = await res.text();
+  } catch (e) {
+    return await postForm(payload);            // 連線層級就失敗 → 直接走表單
+  }
+
+  let data = null;
+  try { data = JSON.parse(txt); } catch (e) { data = null; }
+
+  if (data && data.ok === true) return data;    // 正常路徑
+  if (data && data.ok === false) {
+    // 後端有回應但報錯：只有在錯誤訊息明確是「參數遺失」時才換路徑重試
+    const msg = String(data.error || "");
+    if (/audio|action|is not defined|空|遺失|未定義/i.test(msg)) {
+      try { return await postForm(payload); } catch (e2) {}
+    }
+    throw new Error(msg || ("上傳失敗（HTTP " + status + "）"));
+  }
+
+  // ★ 回應不是 JSON → 多半是被轉址後當成 GET，跑了 doGet。改用表單重試。
+  const hint = (txt || "").indexOf("單字後端已就緒") >= 0 ? "（後端回傳說明頁，代表請求被轉成 GET 了）" : "";
+  try {
+    return await postForm(payload);
+  } catch (e2) {
+    throw new Error("後端回應不是 JSON（" + status + "）" + hint + "；" + (e2 && e2.message ? e2.message : e2) +
+      "。若是手機請改用 Chrome 桌面版，或請老師重新部署後端。");
+  }
 }
 
 /* =====================================================================
