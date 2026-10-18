@@ -141,6 +141,19 @@ input[type=text]:focus{border-color:var(--blue-d)}
 .recic.rec{animation:pulse 1.15s ease-in-out infinite;background:radial-gradient(circle at 34% 30%,#fff,#FFC9C9 55%,#FF8FA0)}
 @keyframes pulse{0%,100%{box-shadow:0 10px 0 rgba(200,150,190,.35),0 0 0 0 rgba(255,120,150,.45)}
 50%{box-shadow:0 10px 0 rgba(200,150,190,.35),0 0 0 22px rgba(255,120,150,0)}}
+/* ===== 對照播放（標準音 vs 我的錄音）===== */
+.boxAB{
+  margin-top:12px;padding:14px;border-radius:22px;
+  background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,241,184,.35));
+  border:2px dashed #FFD84D;box-shadow:var(--sh-s);
+}
+.abrow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.ab-demo{background:linear-gradient(180deg,#CDE8FF,#A6D4FB)}
+.ab-mine{background:linear-gradient(180deg,#CDF3DC,#A6E6C3)}
+.ab-cmp{background:linear-gradient(180deg,#E6DAFF,#CDB8FB)}
+.abbar{height:10px;border-radius:999px;background:rgba(255,255,255,.75);overflow:hidden;margin:10px 0 6px;box-shadow:inset 0 1px 3px rgba(150,120,180,.2)}
+.abfill{display:block;height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#6BBBF5,#78D9A4);transition:width .08s linear}
+.abfill.demo{background:linear-gradient(90deg,#7CC0F5,#B79BF0)}
 .list{display:flex;flex-direction:column;gap:9px;margin-top:6px}
 .item{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:18px;background:rgba(255,255,255,.68);box-shadow:var(--sh-s);flex-wrap:wrap}
 .item .w{font-weight:900;font-size:16px;min-width:84px}
@@ -280,6 +293,23 @@ code{background:rgba(255,255,255,.8);padding:2px 7px;border-radius:8px;font-size
     <div class="vwrap"><span class="vlabel">🔊</span><span class="vbar"><span class="vfill" id="rVfill"></span></span></div>
     <div class="fb" id="rFb" style="margin-top:12px">👆 按下麥克風開始錄音</div>
     <div class="state" id="rState"></div>
+
+    <!-- ★ 錄完立刻能聽 + 跟標準音對照 -->
+    <div class="boxAB" id="rAB" hidden>
+      <div class="abrow">
+        <button class="btn ab-demo"   id="abPlay">🔊 標準音</button>
+        <button class="btn ab-mine"   id="abMine">🎧 我的錄音</button>
+        <button class="btn sm ab-cmp" id="abCmp">🔁 對照播放</button>
+      </div>
+      <div class="abbar"><span class="abfill" id="abFill"></span></div>
+      <div class="small center" id="abTip">👆 先聽標準音，再聽自己的，聽不出一樣就按「🔁 對照播放」</div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn sm green" id="abGood">👍 讀得一樣</button>
+        <button class="btn sm pink"  id="abBad">😅 還要再練</button>
+      </div>
+      <div class="small center" id="abRate" style="margin-top:6px"></div>
+    </div>
+
     <div class="row" style="margin-top:10px">
       <button class="btn sm blue" id="rSay">🔊 聽示範</button>
       <button class="btn sm pink" id="rRetry">↩️ 重錄這顆</button>
@@ -405,7 +435,7 @@ const S = {
   view: "home",
   li: 0, autoL: true,
   liOK: new Set(), liNo: new Set(),
-  ri: 0, recOK: new Set(), recList: [],
+  ri: 0, recOK: new Set(), recList: [], rate: new Map(),   // 單字索引 → "good" / "bad"
   q: null, lastQ: null
 };
 
@@ -755,10 +785,20 @@ async function finishRec() {
   mrBlob = new Blob(mrChunks, { type: (mr && mr.mimeType) || "audio/webm" });
   if (!mrBlob.size) { mrBusy = false; fb("rFb", "❌ 沒有錄到聲音，請再試一次", "err"); return; }
 
+  // ★ 先存成本機 blob，馬上就能播放（不必等上傳）
+  if (lastLocal) { try { URL.revokeObjectURL(lastLocal); } catch (e) {} }
+  lastLocal = URL.createObjectURL(mrBlob);
+  lastLocalIdx = S.ri;
+  lastLocalSec = dur;
+  S.rate.delete(S.ri);
+  showAB(true);
+  $("abTip").textContent = "👆 先聽標準音，再聽自己的，聽不出一樣就按「🔁 對照播放」";
+  $("abRate").textContent = "";
+
   if (!scriptURL) {
     mrBusy = false;
     fb("rFb", "❌ 尚未設定 scriptURL，錄音無法上傳（請老師設定後重新部署）", "err");
-    $("rState").textContent = "";
+    $("rState").textContent = "但你還是可以按「🎧 我的錄音」聽自己唸的！";
     return;
   }
   fb("rFb", "⏳ 傳送中…", "near");
@@ -773,19 +813,105 @@ async function finishRec() {
       audioForm: b64ToForm(audio)      // ★ 給表單重試路徑用的（URL 長度限制較鬆）
     });
     S.recOK.add(S.ri);
-    S.recList.push({ w: wd.w, cn: wd.cn, sec: dur, url: data.fileUrl, preview: data.previewUrl, file: data.fileName });
+    S.recList.push({ w: wd.w, cn: wd.cn, sec: dur, url: data.fileUrl, preview: data.previewUrl, file: data.fileName, local: lastLocal });
     renderRecList(); renderRecDots(); $("rDone").textContent = "✅ 已完成 " + S.recOK.size + " / " + N;
     fb("rFb", "✅ 上傳成功！", "good"); vibrate([60, 40, 90]);
+    $("rState").textContent = "👆 聽聽看自己唸的，覺得不像就按「↩️ 重錄這顆」";
     mrBusy = false;
+    // ★ 不自動跳下一顆：讓學生先完成「聽自己的 → 對照 → 自評」才往下走
     const nx = nextIncomplete(S.ri);
-    setTimeout(() => { if (S.view === "record" && nx >= 0) goWord(nx); }, 800);
-    if (nx < 0) setTimeout(() => { if (S.view === "record") { stopTTS(); fb("rFb", "🎉 全部單字都完成啦！太厲害了！", "good"); } }, 800);
+    $("rNext").textContent = "下一個 ➡️";
+    if (nx < 0) setTimeout(() => { if (S.view === "record") { stopTTS(); fb("rFb", "🎉 全部單字都完成啦！太厲害了！", "good"); } }, 1200);
   } catch (e) {
     mrBusy = false;
     fb("rFb", "❌ 上傳失敗：" + (e && e.message ? e.message : e), "err");
-    $("rState").textContent = "可按「↩️ 重錄這顆」再試一次";
+    $("rState").textContent = "音檔還在這台裝置上，請按「🎧 我的錄音」聽；可按「↩️ 重錄這顆」再試一次";
     vibrate([120, 60, 120]);
   }
+}
+
+/* =====================================================================
+   ★ 對照播放：標準音（TTS）vs 我的錄音
+   ---------------------------------------------------------------------
+   不比對波形或評分（那需要伺服器端音效分析，對這個用途太重、也容易誤判）。
+   設計成「A / B 交替播放 + 學生自己按讚或需要再練」，
+   讓學生耳朵直接判斷，這才是朗讀練習真正的回饋。
+   ===================================================================== */
+let lastLocal = null, lastLocalIdx = -1, lastLocalSec = 0, abPlaying = false, curAudio = null;
+
+function stopAudio() { try { if (curAudio) { curAudio.pause(); curAudio = null; } } catch (e) {} $("abFill").style.width = "0%"; }
+
+function playAudioURL(url, onEnd, onProg) {
+  stopAudio();
+  return new Promise((res) => {
+    const a = new Audio(url);
+    curAudio = a;
+    a.onended = () => { if (onProg) onProg(100); $("abFill").style.width = "0%"; curAudio = null; onEnd && onEnd(); res(); };
+    a.onerror = () => { $("abFill").style.width = "0%"; curAudio = null; onEnd && onEnd(); res(); };
+    if (a.duration && isFinite(a.duration) && onProg) {
+      const t = setInterval(() => {
+        if (!curAudio) { clearInterval(t); return; }
+        onProg(Math.min(99, Math.round(a.currentTime / a.duration * 100)));
+      }, 60);
+    }
+    a.play().catch(() => { curAudio = null; onEnd && onEnd(); res(); });
+  });
+}
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function playDemo() {
+  const wd = WORDS[S.li === -1 ? S.ri : S.ri];
+  stopTTS();
+  $("abTip").textContent = "🔊 標準音：" + wd.w;
+  await ttsPair(wd.w, wd.ex);
+}
+async function playMine() {
+  if (!lastLocal) { toast("🎤 還沒有錄音，先按麥克風錄一次"); return; }
+  $("abTip").textContent = "🎧 你的錄音：" + WORDS[lastLocalIdx].w;
+  await playAudioURL(lastLocal, null, p => { $("abFill").style.width = p + "%"; });
+}
+/** 🔁 標準音 → 我的 → 標準音 → 我的，交替讓學生直接比較 */
+async function playCompare() {
+  if (abPlaying) { stopAudio(); stopTTS(); abPlaying = false; fb("rAbTip"); $("abTip").textContent = "👆 先聽標準音，再聽自己的"; return; }
+  if (!lastLocal) { toast("🎤 還沒有錄音，先按麥克風錄一次"); return; }
+  abPlaying = true; $("abCmp").textContent = "⏹ 停止";
+  const wd = WORDS[lastLocalIdx];
+  fb("rState", "");
+  try {
+    for (let round = 0; round < 2 && abPlaying; round++) {
+      $("abTip").textContent = "🔊 第 " + (round + 1) + " 輪｜標準音：" + wd.w;
+      stopTTS(); $("abFill").className = "abfill demo";
+      await ttsPair(wd.w, wd.ex);
+      if (!abPlaying) break;
+      await sleep(250);
+      $("abTip").textContent = "🎧 第 " + (round + 1) + " 輪｜你的錄音（" + lastLocalSec + "秒）";
+      $("abFill").className = "abfill";
+      await playAudioURL(lastLocal, null, p => { $("abFill").style.width = p + "%"; });
+      await sleep(250);
+    }
+    if (abPlaying) { $("abTip").textContent = "✅ 對照完成！唸得一樣嗎？下面選一個"; }
+  } finally {
+    abPlaying = false; $("abCmp").textContent = "🔁 對照播放";
+    $("abFill").className = "abfill"; $("abFill").style.width = "0%";
+  }
+}
+function showAB(on) {
+  const box = $("rAB");
+  if (!box) return;
+  box.hidden = !on;
+  if (on) { $("abFill").style.width = "0%"; }
+  else { $("abRate").textContent = ""; $("abTip").textContent = "👆 先聽標準音，再聽自己的，聽不出一樣就按「🔁 對照播放」"; }
+}
+function setRate(kind) {
+  const box = $("rAB");
+  if (!lastLocal || lastLocalIdx !== S.ri || !box || box.hidden) { toast("🎤 請先錄一次才能評分"); return; }
+  S.rate.set(S.ri, kind);
+  const wd = WORDS[S.ri];
+  $("abRate").textContent = kind === "good" ? "👍 " + wd.w + "：讀得一樣！可以往下一個了 →" : "😅 " + wd.w + "：再錄一次試試看";
+  renderRecDots();
+  $("abTip").textContent = kind === "good" ? "✅ 太棒了！按「下一個 ➡️」繼續" : "💪 按「↩️ 重錄這顆」再挑戰一次";
+  if (kind === "bad") toast("💪 沒關係，再錄一次一定會更好！");
+  else vibrate([60, 40, 90]);
 }
 
 /* ★ 地雷 4：必須用 for 迴圈掃 WORDS，不能用 Array.findIndex（稀疏陣列會卡死） */
@@ -798,17 +924,36 @@ function renderRecList() {
   const box = $("rList"); $("rListN").textContent = S.recList.length;
   if (!S.recList.length) { box.innerHTML = '<div class="small">還沒有錄音，開始吧～</div>'; return; }
   box.innerHTML = "";
-  S.recList.forEach((it) => {
+  S.recList.forEach((it, k) => {
     const d = document.createElement("div"); d.className = "item";
     d.innerHTML = '<span class="w"></span><span class="info"></span><span class="acts"></span>';
     d.querySelector(".w").textContent = "✅ " + it.w;
     d.querySelector(".info").textContent = it.cn + " · " + it.sec + "秒";
     const acts = d.querySelector(".acts");
+
     const b1 = document.createElement("button"); b1.className = "iconbtn"; b1.title = "線上播放"; b1.textContent = "▶️";
-    b1.onclick = () => { new Audio(it.preview || it.url).play().catch(() => toast("⚠️ 播放失敗，請確認檔案權限")); };
+    b1.onclick = () => {
+      if (it.local) { playAudioURL(it.local); return; }              // ★ 優先播本機版本
+      new Audio(it.preview || it.url).play().catch(() => toast("⚠️ 播放失敗，請確認檔案權限"));
+    };
+    // 🔁 把這一顆載回對照區
+    const b3 = document.createElement("button"); b3.className = "iconbtn"; b3.title = "對照播放"; b3.textContent = "🔁";
+    b3.onclick = () => {
+      if (it.local) {
+        lastLocal = it.local; lastLocalIdx = WORDS.findIndex(w => w.w === it.w); lastLocalSec = it.sec;
+        S.ri = lastLocalIdx; renderRecord(); showAB(true);
+        $("abTip").textContent = "👆 已載入「" + it.w + "」，按🔁 對照播放";
+      } else toast("⚠️ 這筆只有雲端版本，請重新錄一次");
+    };
     const b2 = document.createElement("button"); b2.className = "iconbtn"; b2.title = "下載"; b2.textContent = "⬇️";
-    b2.onclick = () => { const a = document.createElement("a"); a.href = it.preview || it.url; a.download = it.file; a.target = "_blank"; a.click(); };
-    acts.appendChild(b1); acts.appendChild(b2);
+    b2.onclick = () => {
+      if (it.local) {
+        const a = document.createElement("a"); a.href = it.local; a.download = it.file || (it.w + ".webm");
+        a.click(); return;
+      }
+      const a = document.createElement("a"); a.href = it.preview || it.url; a.download = it.file; a.target = "_blank"; a.click();
+    };
+    acts.appendChild(b1); acts.appendChild(b3); acts.appendChild(b2);
     box.appendChild(d);
   });
 }
@@ -974,6 +1119,13 @@ function renderRecord() {
   $("rExCn").textContent = wd.exCn;
   $("rDone").textContent = "✅ 已完成 " + S.recOK.size + " / " + N;
   $("rPrev").disabled = S.ri === 0; $("rNext").disabled = S.ri >= N - 1;
+  // ★ 只有「這一顆剛錄好」才顯示對照區，換頁就收起來
+  showAB(lastLocalIdx === S.ri && !!lastLocal);
+  if (lastLocalIdx === S.ri && S.rate.has(S.ri)) {
+    const k = S.rate.get(S.ri);
+    $("abRate").textContent = k === "good" ? "👍 " + wd.w + "：讀得一樣！可以往下一個了 →" : "😅 " + wd.w + "：再錄一次試試看";
+    $("abTip").textContent = k === "good" ? "✅ 太棒了！按「下一個 ➡️」繼續" : "💪 按「↩️ 重錄這顆」再挑戰一次";
+  }
   renderRecDots();
 }
 
@@ -1139,8 +1291,22 @@ function init() {
   $("rPrev").onclick = () => { if (mr && mr.state === "recording") return toast("🔴 錄音中，請先停止"); goWord(S.ri - 1); };
   $("rNext").onclick = () => { if (mr && mr.state === "recording") return toast("🔴 錄音中，請先停止"); goWord(S.ri + 1); };
   $("rSay").onclick = () => { const w = WORDS[S.ri]; ttsPair(w.w, w.ex); };
-  $("rRetry").onclick = () => { S.recOK.delete(S.ri); renderRecDots(); fb("rFb", "👆 可以重錄這顆了", ""); };
+  $("rRetry").onclick = () => {
+    S.recOK.delete(S.ri); renderRecDots();
+    if (lastLocalIdx === S.ri) { lastLocal = null; lastLocalIdx = -1; }   // ★ 舊錄音作廢，避免聽到舊的
+    S.rate.delete(S.ri);
+    showAB(false);
+    fb("rFb", "👆 可以重錄這顆了", "");
+    $("rState").textContent = "";
+  };
   $("rMic").onclick = () => { if (mrBusy) return; if (mr && mr.state === "recording") stopRec(); else startRec(); };
+
+  /* 對照播放 */
+  $("abPlay").onclick = () => { stopAudio(); playDemo(); };
+  $("abMine").onclick = () => playMine();
+  $("abCmp").onclick = () => playCompare();
+  $("abGood").onclick = () => setRate("good");
+  $("abBad").onclick  = () => setRate("bad");
 
   /* 測驗 */
   $("qSay").onclick = () => { if (S.q && !S.q.done) tts(S.q.qs[S.q.i].w); };
