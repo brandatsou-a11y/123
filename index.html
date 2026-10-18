@@ -196,6 +196,12 @@ input[type=text]:focus{border-color:var(--blue-d)}
 }
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 details{border-radius:20px;background:rgba(255,255,255,.5);padding:12px 14px;box-shadow:var(--sh-s)}
+textarea#wEdit{
+  width:100%;min-height:180px;padding:12px;border-radius:16px;border:3px solid #FFE0EE;
+  font-family:ui-monospace,Consolas,"Microsoft JhengHei",monospace;font-size:14px;line-height:1.7;
+  color:var(--ink);background:rgba(255,255,255,.95);outline:none;resize:vertical;
+}
+textarea#wEdit:focus{border-color:var(--blue-d)}
 summary{cursor:pointer;font-weight:900;font-size:15px;list-style:none}
 summary::-webkit-details-marker{display:none}
 code{background:rgba(255,255,255,.8);padding:2px 7px;border-radius:8px;font-size:13px;word-break:break-all}
@@ -240,6 +246,28 @@ code{background:rgba(255,255,255,.8);padding:2px 7px;border-radius:8px;font-size
       <div>☁️ 後端 scriptURL：<b id="cfgUrl">尚未設定</b></div>
       <div style="margin-top:8px">📌 麥克風權限：<b>整場只問一次</b>。若已封鎖，請到瀏覽器網址列的「🔒」→ 麥克風 → 設為「允許」後重整。</div>
       <div>📌 建議部署到 <b>GitHub Pages（https）</b>，file:// 開檔會每次重問麥克風。</div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>📝 編輯單字（老師用）</summary>
+    <div class="hr"></div>
+    <div class="small">
+      <p style="margin:0 0 6px"><b>一行一個單字</b>，用 <code>|</code> 隔開：</p>
+      <p style="margin:0 0 6px"><code>單字 | 中文 | 例句 | 例句中文</code></p>
+      <p style="margin:0 0 10px">只寫前兩段也可以 → 例句會自動變成 <code>I have a 單字.</code></p>
+      <textarea id="wEdit" spellcheck="false" rows="8"></textarea>
+      <div class="state" id="wMsg" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn sm green" id="wApply">💾 套用（只改這台）</button>
+        <button class="btn sm blue"  id="wCopy">📋 複製成程式碼</button>
+        <button class="btn sm pink"  id="wRevert">↩️ 還原預設</button>
+      </div>
+      <div class="hr"></div>
+      <p style="margin:0 0 6px"><b>⚠️ 想讓全班都用新的單字，必須做到第 2 步：</b></p>
+      <p style="margin:0 0 4px">1️⃣ 先按「💾 套用」在這台試玩看看對不對。</p>
+      <p style="margin:0 0 4px">2️⃣ 按「📋 複製成程式碼」，貼回 <code>index.html</code> 的 <code>const WORDS = [ ... ]</code> 取代它，再上傳 GitHub。</p>
+      <p style="margin:0">（只按「套用」的話，只有你這台電腦會變，學生看到的還是舊的。）</p>
     </div>
   </details>
 </section>
@@ -388,21 +416,17 @@ const DRIVE_FOLDER = "";          // Drive 資料夾 ID，空白＝存根目錄
    單字資料：複製一整組 {w,cn,ex,exCn} 加到下面即可新增單字
    --------------------------------------------------------------------- */
 const WORDS = [
-  { w:"cold",         cn:"感冒；生病的", ex:"I have a bad cold today.",                 exCn:"我今天重感冒。" },
-  { w:"fever",        cn:"發燒",        ex:"She has a high fever.",                     exCn:"她發高燒。" },
-  { w:"headache",     cn:"頭痛",        ex:"I have a terrible headache.",               exCn:"我頭痛得厲害。" },
-  { w:"toothache",    cn:"牙痛",        ex:"My son has a toothache.",                   exCn:"我兒子牙痛。" },
-  { w:"stomachache",  cn:"肚子痛",      ex:"I got a stomachache after dinner.",         exCn:"我吃完晚餐後肚子痛。" },
-  { w:"sore throat",  cn:"喉嚨痛",      ex:"I have a sore throat and a cough.",         exCn:"我喉嚨痛又咳嗽。" },
-  { w:"cough",        cn:"咳嗽",        ex:"He cannot stop coughing at night.",         exCn:"他晚上一直咳不停。" },
-  { w:"runny nose",   cn:"流鼻水",      ex:"I have a runny nose and a fever.",         exCn:"我流鼻水又發燒。" },
-  { w:"backache",     cn:"背痛",        ex:"My back hurts from sitting all day.",       exCn:"我坐了一整天背痛。" },
-  { w:"earache",      cn:"耳痛；耳朵痛", ex:"She has an earache.",                       exCn:"她耳朵痛。" },
-  { w:"flu",          cn:"流感",        ex:"The flu is going around school.",           exCn:"流感正在學校流行。" },
-  { w:"dizzy",        cn:"頭暈的",      ex:"I feel dizzy when I stand up.",             exCn:"我站起來時覺得頭暈。" }
+  { w:"cowboy",     cn:"牛仔",     ex:"I see a cowboy.",     exCn:"我看到一位牛仔。" },
+  { w:"pirate",     cn:"海盜",     ex:"I see a pirate.",     exCn:"我看到一位海盜。" },
+  { w:"cat",        cn:"貓",       ex:"I see a cat.",        exCn:"我看到一隻貓。" },
+  { w:"bat",        cn:"蝙蝠",     ex:"I see a bat.",        exCn:"我看到一隻蝙蝠。" },
+  { w:"owl",        cn:"貓頭鷹",   ex:"I see an owl.",       exCn:"我看到一隻貓頭鷹。" },
+  { w:"ballerina",  cn:"芭蕾舞者", ex:"I see a ballerina.",  exCn:"我看到一位芭蕾舞者。" },
+  { w:"witch",      cn:"巫婆",     ex:"I see a witch.",      exCn:"我看到一位巫婆。" },
+  { w:"monster",    cn:"怪獸",     ex:"I see a monster.",    exCn:"我看到一隻怪獸。" }
 ];
 
-const N = WORDS.length;
+let N = WORDS.length;      // 改單字後會重算
 
 /* ============================ 小工具 ============================ */
 const $  = (id) => document.getElementById(id);
@@ -438,6 +462,109 @@ const S = {
   ri: 0, recOK: new Set(), recList: [], rate: new Map(),   // 單字索引 → "good" / "bad"
   q: null, lastQ: null
 };
+
+/* =====================================================================
+   📝 單字編輯器（老師用）
+   ---------------------------------------------------------------------
+   一行一個單字，用 | 隔開：
+       cold | 感冒；生病的 | I have a bad cold today. | 我今天重感冒。
+   只寫前兩段也行，例句會自動補成 "I have a cold."
+   ===================================================================== */
+const DEFAULT_WORDS = WORDS.slice();          // 保留預設值，「還原」用
+
+function wordsToText(arr) {
+  return arr.map(w => [w.w, w.cn, w.ex, w.exCn].join(" | ")).join("\n");
+}
+function textToWords(txt) {
+  const out = [], errs = [], seen = {};
+  String(txt || "").split(/\r?\n/).forEach((line, i) => {
+    const L = line.trim();
+    if (!L) return;
+    if (L.charAt(0) === "#") return;                       // # 開頭 = 註解，忽略
+    const p = L.split("|").map(s => s.trim());
+    const w = (p[0] || "").trim();
+    if (!/^[A-Za-z][A-Za-z\s'-]*$/.test(w)) { errs.push("第 " + (i + 1) + " 行：單字「" + w + "」不合法"); return; }
+    const key = w.toLowerCase();
+    if (seen[key]) { errs.push("第 " + (i + 1) + " 行：「" + w + "」重複了"); return; }
+    seen[key] = 1;
+    const cn = p[1] || "";
+    if (!cn) { errs.push("第 " + (i + 1) + " 行：「" + w + "」沒有中文"); return; }
+    const ex = p[2] || ("I have " + (/^[aeiou]/i.test(w) ? "an " : "a ") + w + ".");
+    const exCn = p[3] || "";
+    out.push({ w: w, cn: cn, ex: ex, exCn: exCn });
+  });
+  return { words: out, errs: errs };
+}
+/** 套用新單字：清空舊進度，重算 N */
+function applyWords(arr, fromLocal) {
+  WORDS.length = 0;
+  arr.forEach(w => WORDS.push(w));
+  N = WORDS.length;
+  // 重置所有與單字相關的進度
+  S.liOK.clear(); S.liNo.clear(); S.recOK.clear(); S.rate.clear(); S.recList = [];
+  S.li = 0; S.ri = 0; S.q = null; S.lastQ = null;          // ★ 舊成績也要清，否則進測驗會看到舊畫面
+  try { localStorage.removeItem("wc_lastq"); } catch (e) {}
+  lastLocal = null; lastLocalIdx = -1;
+  abortSR(); stopTTS();
+  renderRecList(); renderRecDots();
+  if (S.view === "listen") renderListen();
+  if (S.view === "record") renderRecord();
+  if (fromLocal) {
+    try { localStorage.setItem("wc_words", JSON.stringify(arr)); } catch (e) {}
+    $("wMsg").textContent = "✅ 已套用 " + N + " 個單字（只這台）。要全班統一請按「📋 複製成程式碼」貼回 index.html 再上傳。";
+    $("wMsg").style.color = "#1F6E48";
+  } else {
+    try { localStorage.removeItem("wc_words"); } catch (e) {}
+    $("wMsg").textContent = "✅ 已還原成預設的 " + N + " 個單字";
+    $("wMsg").style.color = "#1F6E48";
+  }
+  toast("✅ 單字已更新：" + N + " 個");
+}
+function initWordEditor() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem("wc_words") || "null"); } catch (e) { saved = null; }
+  if (saved && saved.length) applyWords(saved, true);
+  $("wEdit").value = wordsToText(WORDS);
+
+  $("wApply").onclick = () => {
+    const r = textToWords($("wEdit").value);
+    if (r.errs.length) {
+      $("wMsg").style.color = "#C0392B";
+      $("wMsg").textContent = "❌ " + r.errs.slice(0, 3).join("；") + (r.errs.length > 3 ? " …等 " + r.errs.length + " 個問題" : "");
+      return;
+    }
+    if (r.words.length < 4) {
+      $("wMsg").style.color = "#C0392B";
+      $("wMsg").textContent = "❌ 至少要有 4 個單字，測驗才有 4 個選項可選（現在只有 " + r.words.length + " 個）";
+      return;
+    }
+    applyWords(r.words, true);
+  };
+  $("wRevert").onclick = () => {
+    $("wEdit").value = wordsToText(DEFAULT_WORDS);
+    applyWords(DEFAULT_WORDS, false);
+  };
+  $("wCopy").onclick = () => {
+    const r = textToWords($("wEdit").value);
+    if (r.errs.length) { $("wMsg").style.color = "#C0392B"; $("wMsg").textContent = "❌ 先修正問題再複製：" + r.errs[0]; return; }
+    if (r.words.length < 4) { $("wMsg").style.color = "#C0392B"; $("wMsg").textContent = "❌ 至少要有 4 個單字"; return; }
+    const code = "const WORDS = [\n" + r.words.map(w =>
+      '  { w:"' + w.w + '", cn:"' + w.cn + '", ex:"' + w.ex.replace(/"/g, '\\"') + '", exCn:"' + w.exCn.replace(/"/g, '\\"') + '" }'
+    ).join(",\n") + "\n];";
+    const ta = document.createElement("textarea");
+    ta.value = code; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    if (navigator.clipboard) { navigator.clipboard.writeText(code).catch(() => {}); ok = true; }
+    document.body.removeChild(ta);
+    applyWords(r.words, true);
+    $("wMsg").style.color = ok ? "#1F6E48" : "#C0392B";
+    $("wMsg").textContent = ok
+      ? "📋 已複製！請打開 index.html，把原本的 const WORDS = [ ... ]; 整段取代掉，再上傳 GitHub。"
+      : "❌ 複製失敗，請手動從上面的文字框框選複製。";
+  };
+}
 
 /* =====================================================================
    麥克風管理（地雷 1 / 3：整場只呼叫一次 getUserMedia，被拒就鎖死）
@@ -1333,7 +1460,7 @@ function init() {
   $("cfgUrl").textContent = scriptURL ? "已設定 ✅" : "尚未設定 ❌";
   $("cfgUrl").style.color = scriptURL ? "#1F6E48" : "#C0392B";
 
-  syncAuto(); renderRecList(); renderRecDots();
+  syncAuto(); renderRecList(); renderRecDots(); initWordEditor();
 }
 
 /* 飄浮 emoji */
