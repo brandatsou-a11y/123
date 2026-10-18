@@ -245,6 +245,7 @@ code{background:rgba(255,255,255,.8);padding:2px 7px;border-radius:8px;font-size
       <div class="ex"><div class="en" id="lEx">I have a bad cold today.</div><div class="cn" id="lExCn">我今天重感冒。</div></div>
     </div>
     <div class="fb" id="lFb" style="margin-top:12px">👆 準備好就按「🎤 唸出來」</div>
+    <div class="vwrap"><span class="vlabel">🎤</span><span class="vbar"><span class="vfill" id="lVfill"></span></span></div>
     <div class="state" id="lState"></div>
     <div class="row" style="margin-top:12px">
       <button class="btn blue"  id="lSay">🔊 再聽示範</button>
@@ -509,42 +510,93 @@ async function ttsPair(word, ex, done) {            // ★ 順序固定：單字
    語音辨識（地雷 7 / 8：保留結果、重試上限、切頁作廢回呼）
    ===================================================================== */
 const SRClass = window.SpeechRecognition || window.webkitSpeechRecognition;
-let srRec = null, srToken = 0, srTry = 0, srListening = false;
+let srRec = null, srToken = 0, srTry = 0, srListening = false, srWatch = null, srHeard = "";
 const SR_MAX_RETRY = 2;                              // ★ 最多再試 2 次，不可無限循環
+const SR_WATCHDOG  = 9000;                           // ★ 手機常見「正在聽…」後 onend 永遠不來，自己逾時
+const SR_LANG = "en-US";
+
+const SR_ERR_TXT = {
+  "no-speech": "沒聽到聲音，請離麥克風近一點再唸一次",
+  "audio-capture": "找不到麥克風，或麥克風被其他程式占用",
+  "network": "語音辨識需要連網，請確認沒開飛航模式、沒連到無網路的 Wi-Fi",
+  "not-allowed": "麥克風權限被拒絕，請到瀏覽器設定開啟後重整",
+  "service-not-allowed": "這個瀏覽器不允許使用語音辨識服務",
+  "language-not-supported": "這個瀏覽器不支援 en-US 英文語音",
+  "aborted": "辨識被中止"
+};
+function splitHeard() { return srHeard.split("|").map(s => s.trim()).filter(Boolean); }
+function showHeard() {
+  const t = srHeard.replace(/\s*\|\s*$/, "").trim();
+  $("lState").textContent = t
+    ? "🎧 聽到：「" + t.slice(0, 50) + "」"
+    : "🎤 正在聽…（音量條有在跳嗎？沒跳就是麥克風沒收到聲音）";
+}
 
 function newSR(token) {
   const r = new SRClass();
-  r.lang = "en-US"; r.continuous = false; r.interimResults = false; r.maxAlternatives = 6;
+  r.lang = SR_LANG;
+  r.continuous = false;
+  r.interimResults = true;          // ★ 開 interim：手機常常只給 interim 不給 final
+  r.maxAlternatives = 6;
   let got = null;
   r.onresult = (ev) => {
-    const alts = [];
-    for (let i = 0; i < ev.results.length; i++) {
+    let text = "", hasFinal = false;
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
       const res = ev.results[i];
-      for (let j = 0; j < res.length; j++) alts.push(res[j].transcript);
+      if (res.isFinal) hasFinal = true;
+      for (let j = 0; j < res.length; j++) text += res[j].transcript + " | ";
     }
-    got = alts;                                      // ★ 先存起來，onend 不得覆蓋
+    srHeard = text;
+    if (hasFinal) got = splitHeard();              // ★ 有 final 才當正式結果
+    showHeard();
   };
-  r.onerror = (ev) => { handleSRErr(ev.error, token); };
+  r.onerror = (ev) => { clearWatchdog(); handleSRErr(ev.error, token); };
   r.onend = () => {
-    srListening = false;
+    srListening = false; clearWatchdog(); stopLevel();
     if (token !== srToken || S.view !== "listen") return;   // 已作廢
     if (got) { judge(got, token); }
-    else     { autoRetry(token, "沒聽清楚"); }
+    else if (srHeard.trim()) { judge(splitHeard(), token); }   // 只有 interim 也拿來比對
+    else { autoRetry(token, "沒聽清楚"); }
   };
   return r;
 }
-function abortSR() { srToken++; try { if (srRec) { srRec.onresult = srRec.onerror = srRec.onend = null; srRec.abort(); } } catch (e) {} srRec = null; srListening = false; srTry = 0; }
+/* ★ 看門狗：手機上常見 onend / onerror 都不回應，畫面會卡在「正在聽…」。逾時就自己收掉。 */
+function armWatchdog(token) {
+  clearWatchdog();
+  srWatch = setTimeout(() => {
+    if (token !== srToken || !srListening || S.view !== "listen") return;
+    srListening = false;
+    try { if (srRec) { srRec.onresult = srRec.onerror = srRec.onend = null; srRec.abort(); } } catch (e) {}
+    stopLevel();
+    const heard = splitHeard();
+    if (heard.length) judge(heard, token);
+    else autoRetry(token, "語音辨識沒有回應");
+  }, SR_WATCHDOG);
+}
+function clearWatchdog() { if (srWatch) clearTimeout(srWatch); srWatch = null; }
+
+function abortSR() {
+  srToken++; clearWatchdog();
+  try { if (srRec) { srRec.onresult = srRec.onerror = srRec.onend = null; srRec.abort(); } } catch (e) {}
+  srRec = null; srListening = false; srTry = 0; srHeard = ""; stopLevel();
+}
 
 function handleSRErr(code, token) {
   if (token !== srToken || S.view !== "listen") return;
   if (code === "not-allowed" || code === "service-not-allowed") {
     micLock = true; micGranted = false;
     $("cfgMic").textContent = "🔒 已封鎖（不會再跳窗）";
-    fb("lFb", "🚫 麥克風被封鎖，請到瀏覽器設定開啟後重整", "err"); $("lState").textContent = "";
+    fb("lFb", "🚫 麥克風權限已被封鎖，請到瀏覽器設定開啟後重整", "err"); $("lState").textContent = "";
+    return;
+  }
+  stopLevel();
+  if (code === "network") {
+    fb("lFb", "📡 " + SR_ERR_TXT.network, "err");
+    $("lState").textContent = "語音辨識服務連不上，這台裝置可能無法自動判斷，可改用「🔊 再聽示範」跟著唸";
     return;
   }
   if (code === "no-speech" || code === "aborted" || code === "audio-capture") { autoRetry(token, "沒聽清楚"); return; }
-  fb("lFb", "💪 語音辨識失敗（" + code + "），再試一次", "miss");
+  fb("lFb", "💪 語音辨識失敗：" + (SR_ERR_TXT[code] || code), "miss");
 }
 
 function autoRetry(token, why) {
@@ -564,12 +616,18 @@ async function startSR(token) {
   const s = await ensureMic();
   if (token !== srToken || S.view !== "listen") return;
   if (!s) { fb("lFb", "💪 沒有麥克風權限，請用下方「🎤 唸出來」再試或請老師協助", "miss"); return; }
+  startLevel(s, "lVfill");              // ★ 音量條：立刻分辨「麥克風沒聲音」或「辨識服務沒回應」
+  srHeard = "";
   try {
     srRec = newSR(token); srListening = true;
     srRec.start();
+    armWatchdog(token);                 // ★ 手機保險
     $("lState").textContent = "🎤 正在聽…請唸出：" + WORDS[S.li].w;
     fb("lFb", "🎤 輪到你啦，唸出「" + WORDS[S.li].w + "」", "");
-  } catch (e) { srListening = false; fb("lFb", "💪 無法啟動語音辨識，請再按一次", "miss"); }
+  } catch (e) {
+    srListening = false; clearWatchdog(); stopLevel();
+    fb("lFb", "💪 無法啟動語音辨識，請再按一次", "miss");
+  }
 }
 
 function scoreSpeech(alts, word) {
@@ -608,7 +666,7 @@ function autoNext(ms) { setTimeout(() => { if (S.view === "listen") goWord(S.li 
 /* =====================================================================
    錄音（地雷 2 / 10）
    ===================================================================== */
-let mr = null, mrChunks = [], mrBlob = null, mrTimer = null, mrT0 = 0, mrSec = 0, mrBusy = false, volRAF = null, volCtx = null;
+let mr = null, mrChunks = [], mrBlob = null, mrTimer = null, mrT0 = 0, mrSec = 0, mrBusy = false;
 
 function pickMime() {                                   // ★ 逐一 isTypeSupported 測試
   if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
@@ -648,7 +706,7 @@ async function startRec() {
 }
 function stopVisuals() {
   clearInterval(mrTimer); mrTimer = null;
-  if (volRAF) cancelAnimationFrame(volRAF); volRAF = null;
+  stopLevel();
   $("rMic").textContent = "🎤"; $("rMic").classList.remove("rec");
   $("rTimer").textContent = "00:00";
   $("rVfill").style.width = "0%";
@@ -659,24 +717,35 @@ function stopRec() {
   try { if (mr.state !== "inactive") mr.stop(); } catch (e) { stopVisuals(); }
   // ★ 地雷 3：不要 stop() stream，否則下一顆又要重新取得麥克風
 }
-function startVol(stream) {
+/* 共用音量條：錄音頁與聽力頁都用它。★ 診斷關鍵 —— 音量條不跳＝麥克風沒收到聲音 */
+let lvlRAF = null, lvlSrc = null, lvlAn = null, lvlBuf = null, lvlCtx2 = null;
+function startLevel(stream, fillId) {
+  stopLevel();
   try {
-    if (!volCtx) volCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (volCtx.state === "suspended") volCtx.resume();
-    const src = volCtx.createMediaStreamSource(stream);
-    const an = volCtx.createAnalyser(); an.fftSize = 512; src.connect(an);
-    const buf = new Uint8Array(an.frequencyBinCount);
+    if (!lvlCtx2) lvlCtx2 = new (window.AudioContext || window.webkitAudioContext)();
+    if (lvlCtx2.state === "suspended") lvlCtx2.resume();
+    lvlSrc = lvlCtx2.createMediaStreamSource(stream);
+    lvlAn = lvlCtx2.createAnalyser(); lvlAn.fftSize = 512; lvlSrc.connect(lvlAn);
+    lvlBuf = new Uint8Array(lvlAn.frequencyBinCount);
     const loop = () => {
-      if (!mr || mr.state === "inactive") return;
-      an.getByteTimeDomainData(buf);
+      lvlAn.getByteTimeDomainData(lvlBuf);
       let peak = 0;
-      for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i] - 128) / 128);
-      $("rVfill").style.width = Math.min(100, Math.round(peak * 190)) + "%";
-      volRAF = requestAnimationFrame(loop);
+      for (let i = 0; i < lvlBuf.length; i++) peak = Math.max(peak, Math.abs(lvlBuf[i] - 128) / 128);
+      $(fillId).style.width = Math.min(100, Math.round(peak * 190)) + "%";
+      lvlRAF = requestAnimationFrame(loop);
     };
     loop();
-  } catch (e) { $("rState").textContent = "（音量條無法顯示，但錄音正常）"; }
+  } catch (e) {
+    if (fillId === "rVfill") $("rState").textContent = "（音量條無法顯示，但錄音正常）";
+  }
 }
+function stopLevel() {
+  if (lvlRAF) cancelAnimationFrame(lvlRAF);
+  lvlRAF = null;
+  try { if (lvlSrc) lvlSrc.disconnect(); } catch (e) {}
+  lvlSrc = null;
+}
+function startVol(stream) { startLevel(stream, "rVfill"); }
 
 async function finishRec() {
   stopVisuals();
@@ -795,6 +864,7 @@ function renderListen() {
   $("lExCn").textContent = wd.exCn;
   fb("lFb", "👆 準備好就按「🎤 唸出來」", "");
   $("lState").textContent = "";
+  $("lVfill").style.width = "0%";
   $("lPrev").disabled = S.li === 0; $("lNext").disabled = S.li >= N - 1;
   renderDots("lDots", S.li, S.liOK, S.liNo, "lGo");
 }
