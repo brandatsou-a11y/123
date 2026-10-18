@@ -1,0 +1,1047 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#FFD1E3" />
+<title>單字小教室 🧸 朗讀＋測驗</title>
+<style>
+/* ============================ 共用變數 ============================ */
+:root{
+  --pink:#FFD6E8;  --pink-d:#FF9EC4;
+  --yellow:#FFF1B8;--yellow-d:#FFD84D;
+  --blue:#CDE8FF;  --blue-d:#7CC0F5;
+  --green:#CDF3DC; --green-d:#78D9A4;
+  --purple:#E6DAFF;--purple-d:#B79BF0;
+  --ink:#5B4A6B;   --ink2:#9A8FB0;
+  --card:rgba(255,255,255,.74);
+  --line:rgba(255,255,255,.9);
+  --sh:0 8px 0 rgba(190,160,215,.16), 0 16px 30px rgba(180,140,205,.16);
+  --sh-s:0 4px 0 rgba(190,160,215,.14), 0 8px 16px rgba(180,140,205,.14);
+  --r:28px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;padding:0;min-height:100%}
+body{
+  font-family:"PingFang TC","Microsoft JhengHei","Heiti TC","Noto Sans TC",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color:var(--ink);
+  background:linear-gradient(165deg,#FFE6F1 0%,#F2ECFF 22%,#E6F4FF 45%,#E9FBF1 68%,#FFF6DE 88%,#FFECF4 100%);
+  background-attachment:fixed;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+/* ============================ 飄浮 emoji ============================ */
+#floaters{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+#floaters span{position:absolute;opacity:.5;animation:floatUp linear infinite;filter:saturate(1.15)}
+@keyframes floatUp{
+  0%{transform:translateY(110vh) rotate(0deg) scale(.85)}
+  100%{transform:translateY(-20vh) rotate(360deg) scale(1.05)}
+}
+/* ============================ 版面 ============================ */
+.wrap{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:16px 14px 56px}
+.card{
+  background:var(--card);border:2px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--sh);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  padding:20px 18px;margin:0 0 16px;
+}
+.card.tight{padding:16px 14px}
+h1,h2,h3{margin:0}
+.center{text-align:center}
+.brand{font-size:12px;letter-spacing:3px;color:var(--ink2);font-weight:800;margin-bottom:4px}
+.title{
+  font-size:clamp(28px,8vw,42px);font-weight:900;letter-spacing:1px;line-height:1.25;
+  background:linear-gradient(92deg,#FF8FBE,#FFB25E,#FFD84D,#6FD3A2,#6BBBF5,#B195F2);
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 3px 0 rgba(255,255,255,.85));
+}
+.sub{color:var(--ink2);font-size:15px;font-weight:700;margin-top:6px}
+.small{font-size:13px;color:var(--ink2);font-weight:700;line-height:1.7}
+.hr{height:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),transparent);margin:14px 0}
+/* ============================ 按鈕 ============================ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:52px;min-width:44px;padding:13px 20px;border:none;border-radius:22px;
+  font-family:inherit;font-size:18px;font-weight:900;color:var(--ink);cursor:pointer;
+  background:linear-gradient(180deg,#fff,rgba(255,255,255,.55));
+  box-shadow:var(--sh-s);transition:transform .08s ease,box-shadow .08s ease,filter .2s;
+  user-select:none;line-height:1.2;
+}
+.btn:active{transform:translateY(5px);box-shadow:0 1px 0 rgba(190,160,215,.14)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn.big{font-size:21px;min-height:62px;border-radius:26px}
+.btn.pink{background:linear-gradient(180deg,#FFD6E8,#FFB6D5)}
+.btn.yellow{background:linear-gradient(180deg,#FFF1B8,#FFDE7A)}
+.btn.blue{background:linear-gradient(180deg,#CDE8FF,#A6D4FB)}
+.btn.green{background:linear-gradient(180deg,#CDF3DC,#A6E6C3)}
+.btn.purple{background:linear-gradient(180deg,#E6DAFF,#CDB8FB)}
+.btn.sm{font-size:15px;min-height:44px;padding:9px 14px;border-radius:18px}
+.btn.on{outline:3px dashed rgba(124,192,245,.75);outline-offset:3px}
+.grid3{display:grid;gap:14px}
+@media(min-width:620px){.grid3{grid-template-columns:repeat(3,1fr)}}
+.mode-btn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:22px 14px;min-height:120px;border-radius:26px}
+.mode-btn .ico{font-size:40px;line-height:1}
+.mode-btn .t{font-size:20px;font-weight:900}
+.mode-btn .d{font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.5}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center}
+.row.tight{gap:8px}
+.row.top{justify-content:space-between}
+input[type=text]{
+  width:100%;min-height:56px;padding:14px 18px;border-radius:20px;border:3px solid #FFE0EE;
+  font-family:inherit;font-size:20px;font-weight:800;color:var(--ink);background:rgba(255,255,255,.9);
+  outline:none;transition:border-color .2s;
+}
+input[type=text]:focus{border-color:var(--blue-d)}
+/* ============================ 單字頁 ============================ */
+.wbox{display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;padding:6px 0 2px}
+.bigword{
+  font-size:clamp(36px,10.5vw,64px);font-weight:900;letter-spacing:.5px;line-height:1.15;word-break:break-word;
+  background:linear-gradient(92deg,#FF8FBE,#FFB25E,#FFD84D,#57CE9B,#5FB7F5,#B195F2);
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 4px 0 rgba(255,255,255,.9));
+}
+.badge{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:999px;
+  font-size:15px;font-weight:900;background:rgba(255,255,255,.85);box-shadow:var(--sh-s);
+}
+.ex{background:rgba(255,255,255,.66);border-radius:22px;padding:14px 16px;width:100%;border:2px dashed rgba(255,255,255,.95)}
+.ex .en{font-size:clamp(17px,4.4vw,21px);font-weight:800;line-height:1.5}
+.ex .cn{font-size:15px;color:var(--ink2);font-weight:700;margin-top:5px}
+.nav{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin-top:14px}
+.dots{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
+.dot{
+  width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;font-size:14px;font-weight:900;
+  background:rgba(255,255,255,.7);color:var(--ink2);box-shadow:var(--sh-s);
+  display:flex;align-items:center;justify-content:center;transition:transform .1s;
+}
+.dot:active{transform:scale(.9)}
+.dot.cur{background:linear-gradient(180deg,#FFF1B8,#FFDE7A);color:#8A6A18;outline:3px solid rgba(255,216,77,.45)}
+.dot.ok{background:linear-gradient(180deg,#CDF3DC,#A6E6C3)}
+.dot.bad{background:linear-gradient(180deg,#FFD6E8,#FFB6D5)}
+.fb{
+  min-height:56px;border-radius:20px;padding:12px 14px;font-size:17px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.5;
+  background:rgba(255,255,255,.62);color:var(--ink2);
+}
+.fb.good{background:linear-gradient(180deg,#CDF3DC,#9FE3BC);color:#1F6E48}
+.fb.near{background:linear-gradient(180deg,#FFF1B8,#FFE08A);color:#8A6412}
+.fb.miss{background:linear-gradient(180deg,#FFD6E8,#FFB0D0);color:#9A3B62}
+.fb.err{background:linear-gradient(180deg,#FFE1E1,#FFC3C3);color:#9A3030;font-size:15px}
+.state{font-size:13px;font-weight:800;color:var(--ink2);text-align:center;min-height:20px}
+.vwrap{display:flex;align-items:center;gap:10px;margin-top:10px}
+.vlabel{font-size:12px;font-weight:900;color:var(--ink2);white-space:nowrap}
+.vbar{flex:1;height:16px;border-radius:999px;background:rgba(255,255,255,.7);overflow:hidden;box-shadow:inset 0 2px 5px rgba(150,120,180,.18)}
+.vfill{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#7CD6A6,#FFD84D,#FF8FBE);transition:width .08s linear}
+.timer{font-size:15px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums}
+.recic{width:132px;height:132px;border-radius:50%;border:none;cursor:pointer;font-size:46px;
+  background:radial-gradient(circle at 34% 30%,#fff,#FFD6E8 55%,#FFAECD);
+  box-shadow:0 10px 0 rgba(200,150,190,.35),0 18px 30px rgba(200,140,190,.28);color:var(--ink);
+  display:flex;align-items:center;justify-content:center;margin:6px auto;transition:transform .09s;}
+.recic:active{transform:translateY(8px) scale(.97);box-shadow:0 2px 0 rgba(200,150,190,.35)}
+.recic.rec{animation:pulse 1.15s ease-in-out infinite;background:radial-gradient(circle at 34% 30%,#fff,#FFC9C9 55%,#FF8FA0)}
+@keyframes pulse{0%,100%{box-shadow:0 10px 0 rgba(200,150,190,.35),0 0 0 0 rgba(255,120,150,.45)}
+50%{box-shadow:0 10px 0 rgba(200,150,190,.35),0 0 0 22px rgba(255,120,150,0)}}
+.list{display:flex;flex-direction:column;gap:9px;margin-top:6px}
+.item{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:18px;background:rgba(255,255,255,.68);box-shadow:var(--sh-s);flex-wrap:wrap}
+.item .w{font-weight:900;font-size:16px;min-width:84px}
+.item .info{font-size:12.5px;color:var(--ink2);font-weight:700;flex:1;min-width:110px;word-break:break-all}
+.item .acts{display:flex;gap:6px}
+.iconbtn{width:44px;height:44px;border-radius:14px;border:none;cursor:pointer;font-size:19px;background:rgba(255,255,255,.9);box-shadow:var(--sh-s);display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.iconbtn:active{transform:translateY(3px)}
+/* ============================ 測驗 ============================ */
+.qbar{height:16px;border-radius:999px;background:rgba(255,255,255,.7);overflow:hidden;box-shadow:inset 0 2px 5px rgba(150,120,180,.18)}
+.qfill{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#FF8FBE,#FFD84D,#6BBBF5,#78D9A4);transition:width .35s}
+.opts{display:grid;gap:11px;margin-top:14px}
+.opt{
+  border:none;cursor:pointer;font-family:inherit;font-size:19px;font-weight:900;color:var(--ink);
+  min-height:58px;padding:13px 16px;border-radius:22px;text-align:left;
+  background:linear-gradient(180deg,#fff,rgba(255,255,255,.6));box-shadow:var(--sh-s);
+  transition:transform .08s;display:flex;align-items:center;gap:10px;
+}
+.opt:active{transform:translateY(4px)}
+.opt .k{width:30px;height:30px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#FFE9F3,#FFD1E3);font-size:14px}
+.opt.right{background:linear-gradient(180deg,#CDF3DC,#9FE3BC);outline:3px solid #6FD3A2}
+.opt.wrong{background:linear-gradient(180deg,#FFE1E1,#FFC9C9);outline:3px solid #FF9A9A}
+.opt.lock{opacity:.62}
+.score{
+  font-size:clamp(46px,14vw,82px);font-weight:900;line-height:1;
+  background:linear-gradient(92deg,#FF8FBE,#FFB25E,#FFD84D,#57CE9B,#5FB7F5,#B195F2);
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 4px 0 rgba(255,255,255,.9));
+}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.stat{background:rgba(255,255,255,.7);border-radius:20px;padding:12px 6px;box-shadow:var(--sh-s);text-align:center}
+.stat .n{font-size:22px;font-weight:900}
+.stat .l{font-size:12px;color:var(--ink2);font-weight:800;margin-top:3px}
+/* ============================ toast ============================ */
+#toast{
+  position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(24px);z-index:99;
+  max-width:92vw;padding:13px 20px;border-radius:20px;font-size:15px;font-weight:800;
+  background:rgba(91,74,107,.94);color:#fff;box-shadow:0 12px 28px rgba(0,0,0,.25);
+  opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;line-height:1.5;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+details{border-radius:20px;background:rgba(255,255,255,.5);padding:12px 14px;box-shadow:var(--sh-s)}
+summary{cursor:pointer;font-weight:900;font-size:15px;list-style:none}
+summary::-webkit-details-marker{display:none}
+code{background:rgba(255,255,255,.8);padding:2px 7px;border-radius:8px;font-size:13px;word-break:break-all}
+.legend{display:flex;gap:14px;justify-content:center;font-size:13px;font-weight:800;color:var(--ink2);flex-wrap:wrap}
+@media (max-width:380px){ .bigword{font-size:32px} .btn{font-size:16px} }
+</style>
+</head>
+<body>
+<div id="floaters" aria-hidden="true"></div>
+
+<div class="wrap">
+
+<!-- ========================= 首頁 ========================= -->
+<section id="view-home">
+  <div class="card">
+    <div class="center">
+      <div class="brand">READY ?</div>
+      <h1 class="title">單字小教室 🧸</h1>
+      <div class="sub">英文單字朗讀 ＋ 測驗自動上傳</div>
+    </div>
+    <div class="hr"></div>
+    <div class="center" style="font-size:15px;font-weight:800;margin-bottom:8px">👋 先輸入姓名（必填）</div>
+    <input type="text" id="nameInput" placeholder="請輸入你的名字" autocomplete="off" maxlength="20" />
+    <div id="nameTip" class="state" style="margin-top:8px">還沒輸入名字，不能開始喔～</div>
+    <div class="hr"></div>
+    <div class="grid3">
+      <button class="btn mode-btn blue"  id="goListen"> <span class="ico">👂</span><span class="t">聽力練習</span><span class="d">聽示範 → 輪到你唸<br>自動比對對錯</span></button>
+      <button class="btn mode-btn pink"  id="goRecord"> <span class="ico">🎙️</span><span class="t">錄音作業</span><span class="d">錄下我的朗讀<br>自動存到老師雲端</span></button>
+      <button class="btn mode-btn green" id="goQuiz">   <span class="ico">🎯</span><span class="t">單字測驗</span><span class="d">看英文選中文<br>自動算分數</span></button>
+    </div>
+  </div>
+
+  <details class="card">
+    <summary>⚙️ 設定 / 老師請看這裡</summary>
+    <div class="hr"></div>
+    <div class="small">
+      <p style="margin:0 0 8px">老師只要改 <code>index.html</code> 最下面 script 的前 5 行常數即可。</p>
+      <div class="list" id="cfgBox"></div>
+      <div class="hr"></div>
+      <div>🔊 朗讀聲音：<b id="cfgVoice">讀取中…</b></div>
+      <div>🎙️ 麥克風權限：<b id="cfgMic">尚未取得</b></div>
+      <div>☁️ 後端 scriptURL：<b id="cfgUrl">尚未設定</b></div>
+      <div style="margin-top:8px">📌 麥克風權限：<b>整場只問一次</b>。若已封鎖，請到瀏覽器網址列的「🔒」→ 麥克風 → 設為「允許」後重整。</div>
+      <div>📌 建議部署到 <b>GitHub Pages（https）</b>，file:// 開檔會每次重問麥克風。</div>
+    </div>
+  </details>
+</section>
+
+<!-- ========================= 聽力練習 ========================= -->
+<section id="view-listen" hidden>
+  <div class="card">
+    <div class="row top" style="margin-bottom:8px">
+      <button class="btn sm purple" id="lHome">🏠 回首頁</button>
+      <button class="btn sm yellow on" id="lAuto">🔁 自動模式：開</button>
+    </div>
+    <div class="wbox">
+      <div class="badge" id="lCount">1 / 12</div>
+      <div class="bigword" id="lWord">cold</div>
+      <div class="badge" id="lCn">感冒</div>
+      <div class="ex"><div class="en" id="lEx">I have a bad cold today.</div><div class="cn" id="lExCn">我今天重感冒。</div></div>
+    </div>
+    <div class="fb" id="lFb" style="margin-top:12px">👆 準備好就按「🎤 唸出來」</div>
+    <div class="state" id="lState"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn blue"  id="lSay">🔊 再聽示範</button>
+      <button class="btn green" id="lTalk">🎤 唸出來</button>
+      <button class="btn sm pink" id="lRetry">💪 我只聽不唸</button>
+    </div>
+    <div class="nav">
+      <button class="btn" id="lPrev">⬅️ 上一個</button>
+      <div class="small center" style="min-width:64px">← 左右滑 →</div>
+      <button class="btn" id="lNext">下一個 ➡️</button>
+    </div>
+    <div class="dots" id="lDots"></div>
+    <div class="legend" style="margin-top:8px"><span>🟡 目前</span><span>🟩 唸對</span><span>🩷 失敗</span></div>
+  </div>
+</section>
+
+<!-- ========================= 錄音作業 ========================= -->
+<section id="view-record" hidden>
+  <div class="card">
+    <div class="row top" style="margin-bottom:8px">
+      <button class="btn sm purple" id="rHome">🏠 回首頁</button>
+      <div class="badge" id="rDone">✅ 已完成 0 / 12</div>
+    </div>
+    <div class="wbox">
+      <div class="badge" id="rCount">1 / 12</div>
+      <div class="bigword" id="rWord">cold</div>
+      <div class="badge" id="rCn">感冒</div>
+      <div class="ex"><div class="en" id="rEx">I have a bad cold today.</div><div class="cn" id="rExCn">我今天重感冒。</div></div>
+    </div>
+    <button class="recic" id="rMic" aria-label="開始錄音">🎤</button>
+    <div class="timer center" id="rTimer">00:00</div>
+    <div class="vwrap"><span class="vlabel">🔊</span><span class="vbar"><span class="vfill" id="rVfill"></span></span></div>
+    <div class="fb" id="rFb" style="margin-top:12px">👆 按下麥克風開始錄音</div>
+    <div class="state" id="rState"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn sm blue" id="rSay">🔊 聽示範</button>
+      <button class="btn sm pink" id="rRetry">↩️ 重錄這顆</button>
+    </div>
+    <div class="nav">
+      <button class="btn" id="rPrev">⬅️ 上一個</button>
+      <div class="small center" style="min-width:64px">← 左右滑 →</div>
+      <button class="btn" id="rNext">下一個 ➡️</button>
+    </div>
+    <div class="dots" id="rDots"></div>
+  </div>
+  <div class="card">
+    <h3 style="font-size:19px;margin-bottom:8px">📁 我的錄音（<span id="rListN">0</span>）</h3>
+    <div class="list" id="rList"><div class="small">還沒有錄音，開始吧～</div></div>
+  </div>
+</section>
+
+<!-- ========================= 單字測驗 ========================= -->
+<section id="view-quiz" hidden>
+  <div class="card" id="qCard">
+    <div class="row top" style="margin-bottom:10px">
+      <button class="btn sm purple" id="qHome">🏠 回首頁</button>
+      <div class="badge" id="qInfo">第 1 / 12 題</div>
+    </div>
+    <div class="qbar"><div class="qfill" id="qFill"></div></div>
+    <div class="wbox" style="margin-top:16px">
+      <div class="bigword" id="qWord">cold</div>
+    </div>
+    <div class="row" style="margin:12px 0 0">
+      <button class="btn sm blue" id="qSay">🔊 再聽一次</button>
+      <div class="small">測驗中不顯示例句，認真思考喔 🧠</div>
+    </div>
+    <div class="opts" id="qOpts"></div>
+    <div class="fb" id="qFb" style="margin-top:12px">👆 選一個答案</div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn green" id="qNext" hidden>下一題 ➡️</button>
+    </div>
+  </div>
+
+  <div class="card center" id="qResult" hidden>
+    <div style="font-size:44px">🎉</div>
+    <div class="small" id="qResTitle">測驗完成！</div>
+    <div class="score" id="qResScore">0 / 12</div>
+    <div class="stats">
+      <div class="stat"><div class="n" id="qResAcc">0%</div><div class="l">正確率</div></div>
+      <div class="stat"><div class="n" id="qResTime">0s</div><div class="l">用時</div></div>
+      <div class="stat"><div class="n" id="qResWrong">0</div><div class="l">錯題數</div></div>
+    </div>
+    <div class="fb" id="qResUpload">⏳ 準備上傳…</div>
+    <div class="hr"></div>
+    <div class="small" style="text-align:left;margin-bottom:6px">📌 錯題清單</div>
+    <div class="list" id="qWrongList"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn blue"  id="qAgain">🔁 全部重測</button>
+      <button class="btn yellow" id="qOnlyWrong">📌 只測錯題</button>
+      <button class="btn pink"  id="qResend">📤 重傳成績</button>
+    </div>
+  </div>
+</section>
+
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* =====================================================================
+   ⚙️ 設定區 ── 老師只要改這 5 行（其他都不用動）
+   ===================================================================== */
+const scriptURL    = "https://script.google.com/macros/s/AKfycbzXVdk_P8iyuCQzGuI8gC01swk_NAWTlKzrbOFacrJDV59q5vm7Q0Z5Iw-bdVL24vuP/exec"; // 部署後貼上 /exec 連結
+const TOPIC        = "unit1";     // 主題／班次
+const REC_SHEET    = "錄音紀錄";  // 試算表「錄音」分頁名
+const QUIZ_SHEET   = "測驗成績";  // 試算表「測驗」分頁名
+const DRIVE_FOLDER = "";          // Drive 資料夾 ID，空白＝存根目錄
+/* ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   單字資料：複製一整組 {w,cn,ex,exCn} 加到下面即可新增單字
+   --------------------------------------------------------------------- */
+const WORDS = [
+  { w:"cold",         cn:"感冒；生病的", ex:"I have a bad cold today.",                 exCn:"我今天重感冒。" },
+  { w:"fever",        cn:"發燒",        ex:"She has a high fever.",                     exCn:"她發高燒。" },
+  { w:"headache",     cn:"頭痛",        ex:"I have a terrible headache.",               exCn:"我頭痛得厲害。" },
+  { w:"toothache",    cn:"牙痛",        ex:"My son has a toothache.",                   exCn:"我兒子牙痛。" },
+  { w:"stomachache",  cn:"肚子痛",      ex:"I got a stomachache after dinner.",         exCn:"我吃完晚餐後肚子痛。" },
+  { w:"sore throat",  cn:"喉嚨痛",      ex:"I have a sore throat and a cough.",         exCn:"我喉嚨痛又咳嗽。" },
+  { w:"cough",        cn:"咳嗽",        ex:"He cannot stop coughing at night.",         exCn:"他晚上一直咳不停。" },
+  { w:"runny nose",   cn:"流鼻水",      ex:"I have a runny nose and a fever.",         exCn:"我流鼻水又發燒。" },
+  { w:"backache",     cn:"背痛",        ex:"My back hurts from sitting all day.",       exCn:"我坐了一整天背痛。" },
+  { w:"earache",      cn:"耳痛；耳朵痛", ex:"She has an earache.",                       exCn:"她耳朵痛。" },
+  { w:"flu",          cn:"流感",        ex:"The flu is going around school.",           exCn:"流感正在學校流行。" },
+  { w:"dizzy",        cn:"頭暈的",      ex:"I feel dizzy when I stand up.",             exCn:"我站起來時覺得頭暈。" }
+];
+
+const N = WORDS.length;
+
+/* ============================ 小工具 ============================ */
+const $  = (id) => document.getElementById(id);
+const norm = (s) => String(s).toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+
+let toastT = null;
+function toast(msg, ms) {
+  const t = $("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove("show"), ms || 2600);
+}
+function vibrate(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+function fb(id, text, kind) {
+  const e = $(id); e.textContent = text; e.className = "fb" + (kind ? " " + kind : "");
+}
+function shuffle(a) {
+  const r = a.slice();
+  for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = r[i]; r[i] = r[j]; r[j] = t; }
+  return r;
+}
+function mmss(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
+}
+
+/* ============================ 狀態 ============================ */
+const S = {
+  name: localStorage.getItem("wc_name") || "",
+  view: "home",
+  li: 0, autoL: true,
+  liOK: new Set(), liNo: new Set(),
+  ri: 0, recOK: new Set(), recList: [],
+  q: null, lastQ: null
+};
+
+/* =====================================================================
+   麥克風管理（地雷 1 / 3：整場只呼叫一次 getUserMedia，被拒就鎖死）
+   ===================================================================== */
+let micStream = null, micLock = false, micGranted = false, micPending = null;
+
+async function permState() {
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      const st = await navigator.permissions.query({ name: "microphone" });
+      return st.state;                     // granted / denied / prompt
+    }
+  } catch (e) {}
+  return "unknown";
+}
+
+async function ensureMic() {
+  $("cfgMic").textContent = "檢查中…";
+  if (micLock) { $("cfgMic").textContent = "🔒 已封鎖（不會再跳窗）"; return null; }
+  if (micStream && micStream.active) { $("cfgMic").textContent = "✅ 可使用"; return micStream; }
+  if (micPending) return micPending;
+
+  const p = await permState();
+  if (p === "denied") {                      // ★ 已封鎖 → getUserMedia 呼叫次數必須為 0
+    micLock = true; $("cfgMic").textContent = "🔒 已封鎖（不會再跳窗）";
+    toast("🚫 麥克風權限已被封鎖，請到瀏覽器設定開啟後重整", 4200);
+    return null;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    micLock = true; $("cfgMic").textContent = "❌ 此瀏覽器不支援";
+    return null;
+  }
+
+  micPending = navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(s => { micStream = s; micGranted = true; $("cfgMic").textContent = "✅ 可使用"; return s; })
+    .catch(e => {
+      micStream = null;
+      if (e && (e.name === "NotAllowedError" || e.name === "SecurityError")) { micLock = true; micGranted = false; }
+      $("cfgMic").textContent = "❌ " + (e && e.name ? e.name : "無法使用");
+      return null;
+    })
+    .finally(() => { micPending = null; });
+
+  return micPending;
+}
+
+/* 非錄音頁立刻釋放（地雷 1）。已取得授權時再次取得不會再跳權限視窗。 */
+function releaseMic() {
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (S.view !== "record") $("cfgMic").textContent = micGranted ? "✅ 可使用（已釋放）" : (micLock ? "🔒 已封鎖" : "尚未取得");
+}
+window.addEventListener("pagehide", releaseMic);
+
+/* =====================================================================
+   語音合成（地雷 9：優先美式 → Google → Natural/Neural → Microsoft）
+   ===================================================================== */
+let voices = [], curVoice = null;
+function loadVoices() {
+  try { voices = (window.speechSynthesis && speechSynthesis.getVoices()) || []; } catch (e) { voices = []; }
+  const us = voices.filter(v => /^en[-_]US$/i.test(v.lang) || /en[-_]us/i.test(v.lang));
+  const score = v => {
+    const n = (v.name || "").toLowerCase();
+    let s = 0;
+    if (/google/.test(n)) s += 100;
+    if (/natural|neural/.test(n)) s += 80;
+    if (/microsoft/.test(n)) s += 60;
+    if (/samantha|karen|moira|zira|ava|jenny/.test(n)) s += 30;
+    if (/en[-_]us/i.test(v.lang)) s += 20;
+    return s;
+  };
+  us.sort((a, b) => score(b) - score(a));
+  curVoice = us[0] || voices.find(v => /^en/i.test(v.lang)) || null;
+  $("cfgVoice").textContent = curVoice ? (curVoice.name + "（" + curVoice.lang + "）") : "系統預設（無法挑選）";
+}
+if (window.speechSynthesis) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+
+function tts(text, done) {
+  return new Promise(res => {
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) { done && done(); return res(); }
+    try { speechSynthesis.cancel(); } catch (e) {}
+    const u = new SpeechSynthesisUtterance(text);
+    if (curVoice) { u.voice = curVoice; u.lang = curVoice.lang; } else { u.lang = "en-US"; }
+    u.rate = 0.88; u.pitch = 1.05; u.volume = 1;
+    let fin = false;
+    const end = () => { if (fin) return; fin = true; done && done(); res(); };
+    u.onend = end; u.onerror = end;
+    try { speechSynthesis.speak(u); } catch (e) { end(); }
+    setTimeout(end, 900 + text.length * 110);      // 保險：不卡住流程
+  });
+}
+function stopTTS() { try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {} }
+async function ttsPair(word, ex, done) {            // ★ 順序固定：單字 → 例句
+  await tts(word);
+  if (S.view !== "listen" && S.view !== "record" && !done) return;
+  await tts(ex);
+  done && done();
+}
+
+/* =====================================================================
+   語音辨識（地雷 7 / 8：保留結果、重試上限、切頁作廢回呼）
+   ===================================================================== */
+const SRClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+let srRec = null, srToken = 0, srTry = 0, srListening = false;
+const SR_MAX_RETRY = 2;                              // ★ 最多再試 2 次，不可無限循環
+
+function newSR(token) {
+  const r = new SRClass();
+  r.lang = "en-US"; r.continuous = false; r.interimResults = false; r.maxAlternatives = 6;
+  let got = null;
+  r.onresult = (ev) => {
+    const alts = [];
+    for (let i = 0; i < ev.results.length; i++) {
+      const res = ev.results[i];
+      for (let j = 0; j < res.length; j++) alts.push(res[j].transcript);
+    }
+    got = alts;                                      // ★ 先存起來，onend 不得覆蓋
+  };
+  r.onerror = (ev) => { handleSRErr(ev.error, token); };
+  r.onend = () => {
+    srListening = false;
+    if (token !== srToken || S.view !== "listen") return;   // 已作廢
+    if (got) { judge(got, token); }
+    else     { autoRetry(token, "沒聽清楚"); }
+  };
+  return r;
+}
+function abortSR() { srToken++; try { if (srRec) { srRec.onresult = srRec.onerror = srRec.onend = null; srRec.abort(); } } catch (e) {} srRec = null; srListening = false; srTry = 0; }
+
+function handleSRErr(code, token) {
+  if (token !== srToken || S.view !== "listen") return;
+  if (code === "not-allowed" || code === "service-not-allowed") {
+    micLock = true; micGranted = false;
+    $("cfgMic").textContent = "🔒 已封鎖（不會再跳窗）";
+    fb("lFb", "🚫 麥克風被封鎖，請到瀏覽器設定開啟後重整", "err"); $("lState").textContent = "";
+    return;
+  }
+  if (code === "no-speech" || code === "aborted" || code === "audio-capture") { autoRetry(token, "沒聽清楚"); return; }
+  fb("lFb", "💪 語音辨識失敗（" + code + "），再試一次", "miss");
+}
+
+function autoRetry(token, why) {
+  if (token !== srToken || S.view !== "listen") return;
+  if (srTry >= SR_MAX_RETRY) {
+    fb("lFb", "💪 " + why + "，正確單字是 " + WORDS[S.li].w, "miss");
+    $("lState").textContent = "已自動重試 " + SR_MAX_RETRY + " 次就不再重試，隨時可以按「🎤 唸出來」";
+    return;
+  }
+  srTry++;
+  $("lState").textContent = "🔁 " + why + "，自動再試一次（" + srTry + "/" + SR_MAX_RETRY + "）…";
+  setTimeout(() => { if (token === srToken && S.view === "listen") startSR(token); }, 700);
+}
+
+async function startSR(token) {
+  if (!SRClass) { fb("lFb", "💪 此瀏覽器不支援語音辨識，請用 Chrome / Edge 或 Safari", "miss"); $("lState").textContent = ""; return; }
+  const s = await ensureMic();
+  if (token !== srToken || S.view !== "listen") return;
+  if (!s) { fb("lFb", "💪 沒有麥克風權限，請用下方「🎤 唸出來」再試或請老師協助", "miss"); return; }
+  try {
+    srRec = newSR(token); srListening = true;
+    srRec.start();
+    $("lState").textContent = "🎤 正在聽…請唸出：" + WORDS[S.li].w;
+    fb("lFb", "🎤 輪到你啦，唸出「" + WORDS[S.li].w + "」", "");
+  } catch (e) { srListening = false; fb("lFb", "💪 無法啟動語音辨識，請再按一次", "miss"); }
+}
+
+function scoreSpeech(alts, word) {
+  const keys = norm(word).split(" ").filter(Boolean);
+  let best = 0, bestAlt = "";
+  for (const a of alts) {
+    const t = " " + norm(a) + " ";
+    let hit = 0;
+    for (const k of keys) if (t.indexOf(k) >= 0) hit++;
+    const sc = hit / keys.length;
+    if (sc > best) { best = sc; bestAlt = a; }
+  }
+  return { sc: best, alt: bestAlt };
+}
+
+function judge(alts, token) {
+  if (token !== srToken || S.view !== "listen") return;
+  const wd = WORDS[S.li];
+  const r = scoreSpeech(alts, wd.w);
+  $("lState").textContent = "🎧 听到：「" + (r.alt || "（不清楚）") + "」";
+  if (r.sc >= 0.999) {
+    S.liOK.add(S.li); S.liNo.delete(S.li);
+    fb("lFb", "🎉 唸對啦！太棒了～", "good"); vibrate([60, 40, 120]);
+    autoNext(900);
+  } else if (r.sc >= 0.4) {
+    fb("lFb", "😊 很接近，再試一次！示範：「" + wd.w + "」", "near"); vibrate(40);
+  } else {
+    S.liNo.add(S.li);
+    fb("lFb", "💪 差一點，正確單字是 " + wd.w, "miss"); vibrate([80, 50, 80]);
+  }
+  renderDots("lDots", S.li, S.liOK, S.liNo, "lGo");
+}
+
+function autoNext(ms) { setTimeout(() => { if (S.view === "listen") goWord(S.li + 1); }, ms); }
+
+/* =====================================================================
+   錄音（地雷 2 / 10）
+   ===================================================================== */
+let mr = null, mrChunks = [], mrBlob = null, mrTimer = null, mrT0 = 0, mrSec = 0, mrBusy = false, volRAF = null, volCtx = null;
+
+function pickMime() {                                   // ★ 逐一 isTypeSupported 測試
+  if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
+  const list = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus", "audio/ogg"];
+  for (const m of list) { try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (e) {} }
+  return "";
+}
+const toB64 = (blob) => new Promise((res, rej) => {
+  const fr = new FileReader();
+  fr.onload = () => res(String(fr.result).split(",")[1] || "");
+  fr.onerror = () => rej(new Error("音檔轉換失敗"));
+  fr.readAsDataURL(blob);
+});
+
+async function startRec() {
+  if (mrBusy) return;
+  const s = await ensureMic();                          // ★ 錄音頁才啟動 SR 的反面：本頁永不啟動 SR
+  if (!s) { fb("rFb", "❌ 沒有麥克風權限，請到瀏覽器設定開啟", "err"); return; }
+  const mime = pickMime();
+  try {
+    mr = new MediaRecorder(s, mime ? { mimeType: mime } : undefined);
+  } catch (e) {
+    try { mr = new MediaRecorder(s); } catch (e2) { fb("rFb", "❌ 無法開始錄音：" + (e2.message || e2), "err"); return; }
+  }
+  mrChunks = [];
+  mr.ondataavailable = (e) => { if (e.data && e.data.size) mrChunks.push(e.data); };
+  mr.onstop = () => { finishRec(); };
+  mr.onerror = (e) => { fb("rFb", "❌ 錄音錯誤：" + ((e && e.error) || "未知"), "err"); stopVisuals(); };
+  mr.start();
+  mrT0 = Date.now(); mrSec = 0;
+  $("rMic").textContent = "⏹"; $("rMic").classList.add("rec");
+  $("rTimer").textContent = "00:00";
+  fb("rFb", "🔴 錄音中…唸出「" + WORDS[S.ri].w + "」", "miss");
+  $("rState").textContent = "錄音中，別停頓～";
+  mrTimer = setInterval(() => { mrSec = (Date.now() - mrT0) / 1000; $("rTimer").textContent = mmss(mrSec); }, 200);
+  startVol(s);
+}
+function stopVisuals() {
+  clearInterval(mrTimer); mrTimer = null;
+  if (volRAF) cancelAnimationFrame(volRAF); volRAF = null;
+  $("rMic").textContent = "🎤"; $("rMic").classList.remove("rec");
+  $("rTimer").textContent = "00:00";
+  $("rVfill").style.width = "0%";
+}
+function stopRec() {
+  if (!mr) return;
+  clearInterval(mrTimer);
+  try { if (mr.state !== "inactive") mr.stop(); } catch (e) { stopVisuals(); }
+  // ★ 地雷 3：不要 stop() stream，否則下一顆又要重新取得麥克風
+}
+function startVol(stream) {
+  try {
+    if (!volCtx) volCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (volCtx.state === "suspended") volCtx.resume();
+    const src = volCtx.createMediaStreamSource(stream);
+    const an = volCtx.createAnalyser(); an.fftSize = 512; src.connect(an);
+    const buf = new Uint8Array(an.frequencyBinCount);
+    const loop = () => {
+      if (!mr || mr.state === "inactive") return;
+      an.getByteTimeDomainData(buf);
+      let peak = 0;
+      for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i] - 128) / 128);
+      $("rVfill").style.width = Math.min(100, Math.round(peak * 190)) + "%";
+      volRAF = requestAnimationFrame(loop);
+    };
+    loop();
+  } catch (e) { $("rState").textContent = "（音量條無法顯示，但錄音正常）"; }
+}
+
+async function finishRec() {
+  stopVisuals();
+  mrBusy = true;
+  const wd = WORDS[S.ri];
+  const dur = Math.max(1, Math.round(mrSec));
+  mrBlob = new Blob(mrChunks, { type: (mr && mr.mimeType) || "audio/webm" });
+  if (!mrBlob.size) { mrBusy = false; fb("rFb", "❌ 沒有錄到聲音，請再試一次", "err"); return; }
+
+  if (!scriptURL) {
+    mrBusy = false;
+    fb("rFb", "❌ 尚未設定 scriptURL，錄音無法上傳（請老師設定後重新部署）", "err");
+    $("rState").textContent = "";
+    return;
+  }
+  fb("rFb", "⏳ 傳送中…", "near");
+  $("rState").textContent = "";
+  try {
+    const audio = await toB64(mrBlob);
+    const data = await postJSON({
+      action: "record", topic: TOPIC, name: S.name,
+      word: wd.w, cn: wd.cn, ex: wd.ex,
+      seconds: dur, mime: mrBlob.type, folderId: DRIVE_FOLDER, audio: audio
+    });
+    S.recOK.add(S.ri);
+    S.recList.push({ w: wd.w, cn: wd.cn, sec: dur, url: data.fileUrl, preview: data.previewUrl, file: data.fileName });
+    renderRecList(); renderRecDots(); $("rDone").textContent = "✅ 已完成 " + S.recOK.size + " / " + N;
+    fb("rFb", "✅ 上傳成功！", "good"); vibrate([60, 40, 90]);
+    mrBusy = false;
+    const nx = nextIncomplete(S.ri);
+    setTimeout(() => { if (S.view === "record" && nx >= 0) goWord(nx); }, 800);
+    if (nx < 0) setTimeout(() => { if (S.view === "record") { stopTTS(); fb("rFb", "🎉 全部單字都完成啦！太厲害了！", "good"); } }, 800);
+  } catch (e) {
+    mrBusy = false;
+    fb("rFb", "❌ 上傳失敗：" + (e && e.message ? e.message : e), "err");
+    $("rState").textContent = "可按「↩️ 重錄這顆」再試一次";
+    vibrate([120, 60, 120]);
+  }
+}
+
+/* ★ 地雷 4：必須用 for 迴圈掃 WORDS，不能用 Array.findIndex（稀疏陣列會卡死） */
+function nextIncomplete(from) {
+  for (let i = 1; i <= N; i++) { const k = (from + i) % N; if (!S.recOK.has(k)) return k; }
+  return -1;
+}
+
+function renderRecList() {
+  const box = $("rList"); $("rListN").textContent = S.recList.length;
+  if (!S.recList.length) { box.innerHTML = '<div class="small">還沒有錄音，開始吧～</div>'; return; }
+  box.innerHTML = "";
+  S.recList.forEach((it) => {
+    const d = document.createElement("div"); d.className = "item";
+    d.innerHTML = '<span class="w"></span><span class="info"></span><span class="acts"></span>';
+    d.querySelector(".w").textContent = "✅ " + it.w;
+    d.querySelector(".info").textContent = it.cn + " · " + it.sec + "秒";
+    const acts = d.querySelector(".acts");
+    const b1 = document.createElement("button"); b1.className = "iconbtn"; b1.title = "線上播放"; b1.textContent = "▶️";
+    b1.onclick = () => { new Audio(it.preview || it.url).play().catch(() => toast("⚠️ 播放失敗，請確認檔案權限")); };
+    const b2 = document.createElement("button"); b2.className = "iconbtn"; b2.title = "下載"; b2.textContent = "⬇️";
+    b2.onclick = () => { const a = document.createElement("a"); a.href = it.preview || it.url; a.download = it.file; a.target = "_blank"; a.click(); };
+    acts.appendChild(b1); acts.appendChild(b2);
+    box.appendChild(d);
+  });
+}
+
+/* =====================================================================
+   上傳（★ 不要用 application/json，會觸發 CORS preflight 失敗）
+   ===================================================================== */
+async function postJSON(payload) {
+  if (!scriptURL) throw new Error("尚未設定 scriptURL");
+  const res = await fetch(scriptURL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+  const txt = await res.text();
+  let data;
+  try { data = JSON.parse(txt); } catch (e) { throw new Error("後端回應不是 JSON（" + res.status + "）：" + txt.slice(0, 120)); }
+  if (!data || data.ok !== true) throw new Error((data && data.error) || "上傳失敗（HTTP " + res.status + "）");
+  return data;
+}
+
+/* =====================================================================
+   畫面切換（地雷 5：每個區塊各自對應自己的 hidden，不要在迴圈裡重算）
+   ===================================================================== */
+const VIEWS = ["view-home", "view-listen", "view-record", "view-quiz"];
+function showView(name) {
+  for (const v of VIEWS) $(v).hidden = (v !== name);
+  S.view = name.replace("view-", "");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function needName() {
+  const v = $("nameInput").value.trim();
+  if (!v) { toast("✏️ 請先輸入你的名字！"); $("nameInput").focus(); return false; }
+  S.name = v; localStorage.setItem("wc_name", v);
+  return true;
+}
+
+/* ---------- 圓點導航 ---------- */
+function renderDots(id, cur, okSet, noSet, act) {
+  const box = $(id); box.innerHTML = "";
+  for (let i = 0; i < N; i++) {
+    const b = document.createElement("button");
+    b.className = "dot" + (i === cur ? " cur" : okSet.has(i) ? " ok" : noSet.has(i) ? " bad" : "");
+    b.textContent = i === cur ? "🟡" : okSet.has(i) ? "🟩" : noSet.has(i) ? "🩷" : "⚪";
+    b.setAttribute("aria-label", "第 " + (i + 1) + " 個單字");
+    b.onclick = () => goWord(i);
+    box.appendChild(b);
+  }
+}
+function renderRecDots() { renderDots("rDots", S.ri, S.recOK, new Set(), "rGo"); }
+
+/* ---------- 聽力頁 ---------- */
+function renderListen() {
+  const wd = WORDS[S.li];
+  $("lCount").textContent = (S.li + 1) + " / " + N;
+  $("lWord").textContent = wd.w;
+  $("lCn").textContent = wd.cn;
+  $("lEx").textContent = wd.ex;
+  $("lExCn").textContent = wd.exCn;
+  fb("lFb", "👆 準備好就按「🎤 唸出來」", "");
+  $("lState").textContent = "";
+  $("lPrev").disabled = S.li === 0; $("lNext").disabled = S.li >= N - 1;
+  renderDots("lDots", S.li, S.liOK, S.liNo, "lGo");
+}
+function goWord(i) {
+  const n = Math.max(0, Math.min(N - 1, i));
+  const isL = S.view === "listen";
+  abortSR(); srTry = 0; stopTTS();
+  if (isL) S.li = n; else S.ri = n;
+  if (isL) renderListen(); else renderRecord();
+  // ★ 自動模式開＝換頁自動朗讀＋自動聽；關＝換頁朗讀次數為 0（只能手動按鈕）
+  if (isL) { if (S.autoL) enterWord(); }
+  else { enterWord(); }                 // 錄音頁固定自動示範
+}
+async function enterWord() {
+  const isL = S.view === "listen";
+  const i = isL ? S.li : S.ri;
+  const wd = WORDS[i];
+  const token = ++srToken;
+  stopTTS();
+  fb(isL ? "lFb" : "rFb", "🔊 示範中…", "");
+  await ttsPair(wd.w, wd.ex);            // ★ 順序：單字 → 例句
+  if (S.view !== (isL ? "listen" : "record")) return;
+  fb(isL ? "lFb" : "rFb", isL ? "👆 輪到你唸，按「🎤 唸出來」" : "👆 按下麥克風開始錄音", "");
+  if (isL && S.autoL) startSR(token);    // ★ 自動聽只在「聽力頁＋自動模式開」
+}
+
+/* ---------- 錄音頁 ---------- */
+function renderRecord() {
+  const wd = WORDS[S.ri];
+  $("rCount").textContent = (S.ri + 1) + " / " + N;
+  $("rWord").textContent = wd.w;
+  $("rCn").textContent = wd.cn;
+  $("rEx").textContent = wd.ex;
+  $("rExCn").textContent = wd.exCn;
+  $("rDone").textContent = "✅ 已完成 " + S.recOK.size + " / " + N;
+  $("rPrev").disabled = S.ri === 0; $("rNext").disabled = S.ri >= N - 1;
+  renderRecDots();
+}
+
+/* =====================================================================
+   單字測驗（一頁一題・測驗中不顯示例句）
+   ===================================================================== */
+function makeQuestion(idx) {
+  const wd = WORDS[idx];
+  const others = shuffle([...Array(N).keys()].filter(i => i !== idx)).slice(0, 3).map(i => WORDS[i].cn);
+  return { idx: idx, w: wd.w, answer: wd.cn, opts: shuffle([wd.cn].concat(others)), picked: null, ok: null };
+}
+function startQuiz(list) {
+  S.q = { qs: list.map(makeQuestion), i: 0, t0: Date.now(), wrong: [], done: false };
+  $("qResult").hidden = true; $("qCard").hidden = false;
+  renderQuiz();
+}
+function renderQuiz() {
+  const q = S.q.qs[S.q.i];
+  const p = ((S.q.i + 1) / S.q.qs.length) * 100;
+  $("qFill").style.width = p + "%";
+  $("qInfo").textContent = "第 " + (S.q.i + 1) + " / " + S.q.qs.length + " 題";
+  $("qWord").textContent = q.w;
+  fb("qFb", "👆 選一個答案", ""); $("qNext").hidden = true;
+
+  const box = $("qOpts"); box.innerHTML = "";
+  q.opts.forEach((o, k) => {
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.innerHTML = '<span class="k">' + "ABCD"[k] + '</span><span class="t"></span>';
+    b.querySelector(".t").textContent = o;
+    b.onclick = () => answerQuiz(k);
+    box.appendChild(b);
+  });
+  tts(q.w);                                  // ★ 每題出現自動朗讀該單字
+}
+function answerQuiz(k) {
+  const q = S.q.qs[S.q.i];
+  if (q.picked !== null) return;
+  q.picked = k; q.ok = (q.opts[k] === q.answer);
+  const btns = $("qOpts").children;
+  for (let i = 0; i < btns.length; i++) {
+    btns[i].classList.add("lock");
+    if (btns[i].querySelector(".t").textContent === q.answer) btns[i].classList.add("right");
+  }
+  if (q.ok) {
+    fb("qFb", "✅ 答對了！", "good"); vibrate(50);
+  } else {
+    btns[k].classList.add("wrong");
+    // ★ 答錯只顯示「正確答案是 X」
+    fb("qFb", "❌ 答錯了，正確答案是 " + q.answer, "miss");
+    vibrate([100, 50, 100]);
+    S.q.wrong.push({ w: q.w, picked: q.opts[k], answer: q.answer });
+  }
+  if (S.q.i >= S.q.qs.length - 1) { $("qNext").textContent = "🏁 看成績"; $("qNext").hidden = false; }
+  else { $("qNext").textContent = "下一題 ➡️"; $("qNext").hidden = false; }
+}
+function finishQuiz() {
+  const total = S.q.qs.length;
+  const correct = S.q.qs.filter(q => q.ok).length;
+  const sec = Math.round((Date.now() - S.q.t0) / 1000);
+  const acc = Math.round(correct / total * 100);
+  S.q.done = true;
+  S.lastQ = { total: total, correct: correct, acc: acc, sec: sec, wrong: S.q.wrong.slice() };
+  try { localStorage.setItem("wc_lastq", JSON.stringify(S.lastQ)); } catch (e) {}   // ★ 重整後成績也不會消失
+  showResult();
+  sendQuiz();
+}
+/** 只負責畫出成績；重回首頁／重整後再進來也會呼叫它 */
+function showResult() {
+  const r = S.lastQ;
+  $("qCard").hidden = true; $("qResult").hidden = false;
+  $("qResTitle").textContent = (S.name || "同學") + " 的測驗成績 🎉";
+  $("qResScore").textContent = r.correct + " / " + r.total;
+  $("qResAcc").textContent = r.acc + "%";
+  $("qResTime").textContent = r.sec + "s";
+  $("qResWrong").textContent = (r.wrong || []).length;
+  $("qOnlyWrong").disabled = !(r.wrong && r.wrong.length);
+  if ($("qResUpload").textContent.indexOf("準備上傳") >= 0) {
+    $("qResUpload").textContent = "📦 成績保存在這台裝置，可按「重傳成績」再送一次";
+    $("qResUpload").className = "fb";
+  }
+
+  const wl = $("qWrongList"); wl.innerHTML = "";
+  if (!r.wrong || !r.wrong.length) { wl.innerHTML = '<div class="item"><span class="info">全對！一個錯字都沒有，超厲害！</span></div>'; }
+  else r.wrong.forEach(x => {
+    const d = document.createElement("div"); d.className = "item";
+    d.innerHTML = '<span class="w"></span><span class="info"></span>';
+    d.querySelector(".w").textContent = x.w;
+    d.querySelector(".info").textContent = "你選了「" + x.picked + "」／正確是「" + x.answer + "」";
+    wl.appendChild(d);
+  });
+}
+async function sendQuiz() {
+  if (!scriptURL) { fb("qResUpload", "❌ 尚未設定 scriptURL，成績無法上傳（請老師設定）", "err"); return; }
+  const r = S.lastQ;
+  fb("qResUpload", "⏳ 傳送中…", "near");
+  try {
+    await postJSON({
+      action: "quiz", topic: TOPIC, name: S.name,
+      total: r.total, correct: r.correct, accuracy: r.acc, seconds: r.sec,
+      wrong: r.wrong.map(x => x.w + "(" + x.picked + "→" + x.answer + ")").join("、")
+    });
+    fb("qResUpload", "✅ 成績已上傳到老師的試算表！", "good");
+  } catch (e) {
+    fb("qResUpload", "❌ 上傳失敗：" + (e && e.message ? e.message : e) + "（可按「📤 重傳成績」）", "err");
+  }
+}
+
+/* =====================================================================
+   手機左右滑動翻頁
+   ===================================================================== */
+let tsx = 0, tsy = 0, tst = 0;
+document.addEventListener("touchstart", (e) => {
+  const t = e.changedTouches[0]; tsx = t.clientX; tsy = t.clientY; tst = Date.now();
+}, { passive: true });
+document.addEventListener("touchend", (e) => {
+  if (S.view !== "listen" && S.view !== "record") return;
+  if (e.target.closest && e.target.closest("button,input,a,summary,details")) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - tsx, dy = t.clientY - tsy;
+  if (Date.now() - tst > 800) return;
+  if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+  const cur = S.view === "listen" ? S.li : S.ri;
+  goWord(cur + (dx < 0 ? 1 : -1));
+}, { passive: true });
+
+/* =====================================================================
+   事件綁定
+   ===================================================================== */
+function init() {
+  try { S.lastQ = JSON.parse(localStorage.getItem("wc_lastq") || "null"); } catch (e) { S.lastQ = null; }
+  $("nameInput").value = S.name;
+  const tip = $("nameTip");
+  if (S.name) tip.textContent = "👋 歡迎回來，" + S.name + "！按下面三個模式開始吧～";
+  $("nameInput").addEventListener("input", () => {
+    const v = $("nameInput").value.trim();
+    if (v) { S.name = v; localStorage.setItem("wc_name", v); tip.textContent = "👋 記住你了，" + v + "！"; }
+    else { localStorage.removeItem("wc_name"); tip.textContent = "還沒輸入名字，不能開始喔～"; }
+  });
+  $("nameInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("goListen").click(); });
+
+  $("goListen").onclick = () => { if (!needName()) return; abortSR(); showView("view-listen"); renderListen(); S.autoL = true; syncAuto(); goWord(S.li); };
+  $("goRecord").onclick = () => { if (!needName()) return; abortSR(); stopTTS(); showView("view-record"); goWord(S.ri); };
+  $("goQuiz").onclick = () => {
+    if (!needName()) return; abortSR(); stopTTS(); showView("view-quiz");
+    if (S.lastQ) { showResult(); }                              // ★ 成績不消失：回首頁再進來仍看得到
+    else startQuiz(shuffle([...Array(N).keys()]));
+  };
+
+  $("lHome").onclick = $("rHome").onclick = () => { abortSR(); stopTTS(); releaseMic(); showView("view-home"); };
+  $("qHome").onclick = () => { stopTTS(); showView("view-home"); };
+
+  /* 聽力 */
+  $("lPrev").onclick = () => goWord(S.li - 1);
+  $("lNext").onclick = () => goWord(S.li + 1);
+  $("lSay").onclick = () => { const w = WORDS[S.li]; ttsPair(w.w, w.ex); };
+  $("lTalk").onclick = () => { const t = ++srToken; srTry = 0; startSR(t); };
+  $("lRetry").onclick = () => { const t = ++srToken; srTry = SR_MAX_RETRY; startSR(t); };
+  $("lAuto").onclick = () => { S.autoL = !S.autoL; syncAuto(); if (S.autoL) enterWord(); };
+  function syncAuto() { const b = $("lAuto"); b.textContent = "🔁 自動模式：" + (S.autoL ? "開" : "關"); b.classList.toggle("on", S.autoL); }
+
+  /* 錄音 */
+  $("rPrev").onclick = () => { if (mr && mr.state === "recording") return toast("🔴 錄音中，請先停止"); goWord(S.ri - 1); };
+  $("rNext").onclick = () => { if (mr && mr.state === "recording") return toast("🔴 錄音中，請先停止"); goWord(S.ri + 1); };
+  $("rSay").onclick = () => { const w = WORDS[S.ri]; ttsPair(w.w, w.ex); };
+  $("rRetry").onclick = () => { S.recOK.delete(S.ri); renderRecDots(); fb("rFb", "👆 可以重錄這顆了", ""); };
+  $("rMic").onclick = () => { if (mrBusy) return; if (mr && mr.state === "recording") stopRec(); else startRec(); };
+
+  /* 測驗 */
+  $("qSay").onclick = () => { if (S.q && !S.q.done) tts(S.q.qs[S.q.i].w); };
+  $("qNext").onclick = () => {
+    if (!S.q || S.q.done) return;
+    if (S.q.i >= S.q.qs.length - 1) finishQuiz();
+    else { S.q.i++; renderQuiz(); }
+  };
+  $("qAgain").onclick = () => { S.lastQ = null; try { localStorage.removeItem("wc_lastq"); } catch (e) {} startQuiz(shuffle([...Array(N).keys()])); };
+  $("qOnlyWrong").onclick = () => {
+    const w = (S.lastQ && S.lastQ.wrong) || [];
+    if (!w.length) return toast("沒有錯題，太強了！");
+    const idx = w.map(x => WORDS.findIndex(v => v.w === x.w)).filter(i => i >= 0);
+    S.lastQ = null; startQuiz(idx);
+  };
+  $("qResend").onclick = () => { if (S.lastQ) sendQuiz(); };
+
+  /* 設定面板 */
+  $("cfgBox").innerHTML =
+    "<div>📚 主題 TOPIC：<b>" + TOPIC + "</b></div>" +
+    "<div>🎙️ 錄音分頁：<b>" + REC_SHEET + "</b></div>" +
+    "<div>🎯 成績分頁：<b>" + QUIZ_SHEET + "</b></div>" +
+    "<div>📁 Drive 資料夾：<b>" + (DRIVE_FOLDER ? DRIVE_FOLDER : "（根目錄）") + "</b></div>";
+  $("cfgUrl").textContent = scriptURL ? "已設定 ✅" : "尚未設定 ❌";
+  $("cfgUrl").style.color = scriptURL ? "#1F6E48" : "#C0392B";
+
+  syncAuto(); renderRecList(); renderRecDots();
+}
+
+/* 飄浮 emoji */
+(function floaters() {
+  const box = $("floaters"), emo = ["☁️", "🌈", "🐻", "🍬", "⭐", "🎈", "🧸", "🍀", "🌸", "🫧", "🍭", "☂️"];
+  for (let i = 0; i < 16; i++) {
+    const s = document.createElement("span");
+    s.textContent = emo[Math.floor(Math.random() * emo.length)];
+    s.style.left = Math.floor(Math.random() * 96) + "%";
+    s.style.fontSize = (16 + Math.random() * 26) + "px";
+    s.style.animationDuration = (16 + Math.random() * 18) + "s";
+    s.style.animationDelay = (-Math.random() * 30) + "s";
+    box.appendChild(s);
+  }
+})();
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
